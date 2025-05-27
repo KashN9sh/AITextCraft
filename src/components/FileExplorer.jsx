@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faFolder, faFolderOpen, faFile, faPlus, faPen, faTrash, faCopy, faArrowRight } from '@fortawesome/free-solid-svg-icons';
+import { faFolder, faFolderOpen, faFile, faPlus, faPen, faTrash, faCopy, faArrowRight, faChevronRight, faChevronDown } from '@fortawesome/free-solid-svg-icons';
 
 function FileExplorer({ onFileSelect, directoryPath, currentFile }) {
   const [files, setFiles] = useState([]);
@@ -11,6 +11,8 @@ function FileExplorer({ onFileSelect, directoryPath, currentFile }) {
   const [isCreatingFile, setIsCreatingFile] = useState(false);
   const [isRenamingFile, setIsRenamingFile] = useState(false);
   const [renameItem, setRenameItem] = useState(null);
+  const [expandedDirs, setExpandedDirs] = useState(new Set());
+  const [subDirs, setSubDirs] = useState({});
   const contextMenuRef = useRef(null);
   const newFileInputRef = useRef(null);
   const renameInputRef = useRef(null);
@@ -24,6 +26,18 @@ function FileExplorer({ onFileSelect, directoryPath, currentFile }) {
       console.error("Ошибка при загрузке списка файлов:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadSubDirectory = async (path) => {
+    try {
+      const contents = await invoke("get_directory_contents", { path });
+      setSubDirs(prev => ({
+        ...prev,
+        [path]: contents
+      }));
+    } catch (error) {
+      console.error("Ошибка при загрузке содержимого поддиректории:", error);
     }
   };
 
@@ -63,10 +77,20 @@ function FileExplorer({ onFileSelect, directoryPath, currentFile }) {
   }, [isRenamingFile]);
 
   // Обработчик клика по файлу или директории
-  const handleItemClick = (item) => {
+  const handleItemClick = async (item) => {
     if (item.is_dir) {
-      // Если это директория, загружаем её содержимое
-      loadDirectoryContents(item.path);
+      // Если это директория, переключаем её состояние
+      const newExpandedDirs = new Set(expandedDirs);
+      if (expandedDirs.has(item.path)) {
+        newExpandedDirs.delete(item.path);
+      } else {
+        newExpandedDirs.add(item.path);
+        // Загружаем содержимое директории, если оно ещё не загружено
+        if (!subDirs[item.path]) {
+          await loadSubDirectory(item.path);
+        }
+      }
+      setExpandedDirs(newExpandedDirs);
     } else {
       // Если это файл, вызываем обработчик выбора файла
       onFileSelect(item);
@@ -183,6 +207,50 @@ function FileExplorer({ onFileSelect, directoryPath, currentFile }) {
     }
   };
 
+  const renderFileTree = (items, level = 0) => {
+    return items.map((item, index) => (
+      <div key={index} style={{ marginLeft: `${level * 20}px` }}>
+        <li 
+          className={`file-item ${item.is_dir ? 'directory' : 'file'} ${currentFile?.path === item.path ? 'selected' : ''} ${isRenamingFile && renameItem?.path === item.path ? 'renaming' : ''}`}
+          onClick={() => handleItemClick(item)}
+          onContextMenu={(e) => handleContextMenu(e, item)}
+        >
+          <span className="file-icon">
+            {item.is_dir ? (
+              expandedDirs.has(item.path) ? (
+                <FontAwesomeIcon icon={faChevronDown} className="dir-arrow" />
+              ) : (
+                <FontAwesomeIcon icon={faChevronRight} className="dir-arrow" />
+              )
+            ) : null}
+            <FontAwesomeIcon icon={item.is_dir ? (expandedDirs.has(item.path) ? faFolderOpen : faFolder) : faFile} />
+          </span>
+          {isRenamingFile && renameItem?.path === item.path ? (
+            <input
+              ref={renameInputRef}
+              type="text"
+              value={newFileName}
+              onChange={(e) => setNewFileName(e.target.value)}
+              onKeyDown={handleRenameSubmit}
+              onBlur={() => {
+                setIsRenamingFile(false);
+                setRenameItem(null);
+              }}
+              className="rename-file-input"
+            />
+          ) : (
+            <span className="file-name">{item.name}</span>
+          )}
+        </li>
+        {item.is_dir && expandedDirs.has(item.path) && subDirs[item.path] && (
+          <ul className="file-list">
+            {renderFileTree(subDirs[item.path], level + 1)}
+          </ul>
+        )}
+      </div>
+    ));
+  };
+
   return (
     <div className="file-explorer">
       {loading ? (
@@ -209,34 +277,7 @@ function FileExplorer({ onFileSelect, directoryPath, currentFile }) {
           {files.length === 0 ? (
             <li className="empty-directory">Нет файлов</li>
           ) : (
-            files.map((item, index) => (
-              <li 
-                key={index} 
-                className={`file-item ${item.is_dir ? 'directory' : 'file'} ${currentFile?.path === item.path ? 'selected' : ''} ${isRenamingFile && renameItem?.path === item.path ? 'renaming' : ''}`}
-                onClick={() => handleItemClick(item)}
-                onContextMenu={(e) => handleContextMenu(e, item)}
-              >
-                <span className="file-icon">
-                  <FontAwesomeIcon icon={item.is_dir ? faFolder : faFile} />
-                </span>
-                {isRenamingFile && renameItem?.path === item.path ? (
-                  <input
-                    ref={renameInputRef}
-                    type="text"
-                    value={newFileName}
-                    onChange={(e) => setNewFileName(e.target.value)}
-                    onKeyDown={handleRenameSubmit}
-                    onBlur={() => {
-                      setIsRenamingFile(false);
-                      setRenameItem(null);
-                    }}
-                    className="rename-file-input"
-                  />
-                ) : (
-                  <span className="file-name">{item.name}</span>
-                )}
-              </li>
-            ))
+            renderFileTree(files)
           )}
         </ul>
       )}

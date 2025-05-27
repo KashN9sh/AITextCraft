@@ -674,6 +674,14 @@ body {
   display: inline-flex;
   align-items: center;
   font-size: 1.1em;
+  gap: 0.3rem;
+}
+
+.dir-arrow {
+  font-size: 0.8em;
+  color: var(--text-color);
+  opacity: 0.6;
+  transition: transform 0.2s;
 }
 
 .directory .file-icon {
