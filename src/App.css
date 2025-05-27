@@ -73,6 +73,20 @@
   margin-bottom: 14px;
 }
 
+.toolbar-main {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.toolbar-navigation {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border-color);
+}
+
 .filename-input {
   padding: 0.5rem 0.8rem;
   border: 1px solid var(--border-color);
@@ -267,14 +281,32 @@
 /* Стили панели быстрых вставок */
 .quick-insert-bar {
   display: flex;
+  justify-content: space-between;
+  align-items: center;
   gap: 0.4rem;
   padding: 0.6rem;
-  background-color: var(--primary-light);
+  background-color: var(--toolbar-bg);
   border-radius: 12px;
-  margin-bottom: 14px;
-  box-shadow: 0 2px 12px var(--shadow-color);
   border: 1px solid var(--border-color);
-  align-items: center;
+  margin-bottom: 14px;
+  box-shadow: 0 2px 8px var(--shadow-color);
+}
+
+.quick-insert-left {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.quick-insert-center {
+  display: flex;
+  gap: 0.4rem;
+  justify-content: center;
+  flex: 1;
+}
+
+.quick-insert-right {
+  display: flex;
+  gap: 0.4rem;
 }
 
 .quick-insert-bar button {

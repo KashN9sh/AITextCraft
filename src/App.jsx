@@ -308,42 +308,44 @@ function App() {
         
         {/* Редактор */}
         <div className="editor-container">
-          <div className="toolbar">
-            <button
-              onClick={handleHomeClick}
-              className="toolbar-button"
-              title="На главный экран"
-            >
-              <FontAwesomeIcon icon={faHome} />
-            </button>
-
-            <button
-              onClick={() => setIsExplorerOpen(!isExplorerOpen)}
-              className="toolbar-button"
-              title={isExplorerOpen ? "Скрыть проводник" : "Показать проводник"}
-            >
-              <FontAwesomeIcon icon={faFolderOpen} />
-            </button>
-          </div>
           
           {/* Панель быстрых вставок */}
           {!isPreview && (
             <div className="quick-insert-bar">
-              <button onClick={() => insertAtCursor("**", "**")} title="Жирный"><b>B</b></button>
-              <button onClick={() => insertAtCursor("*", "*")} title="Курсив"><i>I</i></button>
-              <button onClick={() => insertAtCursor("# ")} title="Заголовок">H1</button>
-              <button onClick={() => insertAtCursor("- ")} title="Список">•</button>
-              <button onClick={() => insertAtCursor("[текст](url)")} title="Ссылка"><FontAwesomeIcon icon={faLink} /></button>
-              <button onClick={() => insertAtCursor("`", "`")} title="Код">&lt;/&gt;</button>
-              <button onClick={() => insertAtCursor("> ")} title="Цитата">❝</button>
-              <div className="spacer"></div>
-              <button 
-                onClick={() => setIsPreview(!isPreview)} 
-                className="preview-button"
-                title={isPreview ? "Редактировать" : "Предпросмотр"}
-              >
-                <FontAwesomeIcon icon={isPreview ? faEdit : faEye} />
-              </button>
+              <div className="quick-insert-left">
+                <button
+                  onClick={handleHomeClick}
+                  className="toolbar-button"
+                  title="На главный экран"
+                >
+                  <FontAwesomeIcon icon={faHome} />
+                </button>
+                <button
+                  onClick={() => setIsExplorerOpen(!isExplorerOpen)}
+                  className="toolbar-button"
+                  title={isExplorerOpen ? "Скрыть проводник" : "Показать проводник"}
+                >
+                  <FontAwesomeIcon icon={faFolderOpen} />
+                </button>
+              </div>
+              <div className="quick-insert-center">
+                <button onClick={() => insertAtCursor("**", "**")} title="Жирный"><b>B</b></button>
+                <button onClick={() => insertAtCursor("*", "*")} title="Курсив"><i>I</i></button>
+                <button onClick={() => insertAtCursor("# ")} title="Заголовок">H1</button>
+                <button onClick={() => insertAtCursor("- ")} title="Список">•</button>
+                <button onClick={() => insertAtCursor("[текст](url)")} title="Ссылка"><FontAwesomeIcon icon={faLink} /></button>
+                <button onClick={() => insertAtCursor("`", "`")} title="Код">&lt;/&gt;</button>
+                <button onClick={() => insertAtCursor("> ")} title="Цитата">❝</button>
+              </div>
+              <div className="quick-insert-right">
+                <button 
+                  onClick={() => setIsPreview(!isPreview)} 
+                  className="toolbar-button"
+                  title={isPreview ? "Редактировать" : "Предпросмотр"}
+                >
+                  <FontAwesomeIcon icon={isPreview ? faEdit : faEye} />
+                </button>
+              </div>
             </div>
           )}
           
