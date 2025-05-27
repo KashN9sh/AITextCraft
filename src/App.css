@@ -249,3 +249,16 @@ button {
   background: #fff !important;
   color: #222 !important;
 }
+
+.markdown-body input[type="checkbox"] {
+  margin-right: 8px;
+  vertical-align: middle;
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+}
+
+.markdown-body input[type="checkbox"]:disabled {
+  cursor: default;
+  opacity: 0.8;
+}

@@ -5,15 +5,32 @@ import hljs from "highlight.js";
 import "highlight.js/styles/github.css";
 import "./App.css";
 
-// Настраиваем marked для использования highlight.js
+// Настраиваем marked для использования highlight.js и поддержки чекбоксов
 marked.setOptions({
   highlight: function(code, lang) {
     if (lang && hljs.getLanguage(lang)) {
       return hljs.highlight(code, { language: lang }).value;
     }
     return hljs.highlightAuto(code).value;
-  }
+  },
+  gfm: true, // Включаем GitHub Flavored Markdown
+  breaks: true, // Включаем переносы строк
+  headerIds: true, // Включаем ID для заголовков
+  mangle: false, // Отключаем преобразование email-адресов
+  pedantic: false, // Отключаем педантичный режим
+  sanitize: false, // Отключаем санитизацию HTML
+  smartLists: true, // Включаем умные списки
+  smartypants: true, // Включаем умные кавычки
+  xhtml: false // Отключаем XHTML
 });
+
+// Добавляем поддержку чекбоксов
+const renderer = new marked.Renderer();
+const originalCheckbox = renderer.checkbox;
+renderer.checkbox = function(checked) {
+  return `<input type="checkbox" ${checked ? 'checked' : ''} disabled />`;
+};
+marked.use({ renderer });
 
 function App() {
   const [content, setContent] = useState("");
@@ -72,6 +89,82 @@ function App() {
     const textarea = textareaRef.current;
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
+    
+    // --- Автоматическое форматирование заголовков ---
+    if (e.key === ' ' && content.substring(start - 1, start) === '#') {
+      const before = content.substring(0, start - 1);
+      const after = content.substring(end);
+      const lines = before.split('\n');
+      const currentLine = lines[lines.length - 1];
+      
+      if (currentLine.match(/^#+$/)) {
+        e.preventDefault();
+        const level = currentLine.length;
+        setContent(before + ' ' + after);
+        setTimeout(() => {
+          textarea.focus();
+          textarea.setSelectionRange(start, start);
+        }, 0);
+        return;
+      }
+    }
+
+    // --- Умные ссылки ---
+    if (e.key === 'Enter' && start === end) {
+      const before = content.substring(0, start);
+      const after = content.substring(end);
+      const lines = before.split('\n');
+      const currentLine = lines[lines.length - 1];
+      
+      // Проверяем, является ли строка URL
+      if (currentLine.match(/^(https?:\/\/[^\s]+)$/)) {
+        e.preventDefault();
+        const url = currentLine;
+        setContent(
+          before.replace(url, '') + 
+          `[${url}](${url})` + 
+          after
+        );
+        setTimeout(() => {
+          textarea.focus();
+          textarea.setSelectionRange(start + url.length + 4, start + url.length + 4);
+        }, 0);
+        return;
+      }
+    }
+
+    // --- Автоматическое форматирование таблиц ---
+    if (e.key === '|') {
+      const before = content.substring(0, start);
+      const after = content.substring(end);
+      const lines = before.split('\n');
+      const currentLine = lines[lines.length - 1];
+      
+      // Если это первая ячейка в строке
+      if (!currentLine.includes('|')) {
+        e.preventDefault();
+        setContent(before + '| | |\n| --- | --- |\n| | |' + after);
+        setTimeout(() => {
+          textarea.focus();
+          textarea.setSelectionRange(start + 2, start + 2);
+        }, 0);
+        return;
+      }
+    }
+
+    // --- Умные списки задач ---
+    if (e.key === '[' && content.substring(start - 2, start) === '- ') {
+      e.preventDefault();
+      setContent(
+        content.substring(0, start) + '[ ]' + content.substring(end)
+      );
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + 3, start + 3);
+      }, 0);
+      return;
+    }
+
     // --- Авто-закрытие парных символов ---
     const pairs = {
       '*': '*',
