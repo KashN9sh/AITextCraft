@@ -79,7 +79,15 @@ function App() {
 
   const handleSave = async () => {
     try {
-      await invoke("save_file", { content, fileName });
+      // Если мы открыли файл из проводника, используем полный путь для сохранения
+      if (currentDirectory && fileName.indexOf('/') === -1 && fileName.indexOf('\\') === -1) {
+        // Если fileName просто имя файла без пути, добавляем текущую директорию
+        const fullPath = `${currentDirectory.path}/${fileName}`;
+        await invoke("save_file", { content, fileName: fullPath });
+      } else {
+        // Иначе используем fileName как есть (это может быть полный путь или имя файла)
+        await invoke("save_file", { content, fileName });
+      }
       alert("Файл успешно сохранен!");
     } catch (error) {
       alert("Ошибка при сохранении файла: " + error);
@@ -96,8 +104,8 @@ function App() {
   };
 
   const handleFileSelect = async (fileItem) => {
-    // Устанавливаем имя файла
-    setFileName(fileItem.name);
+    // Сохраняем полный путь к файлу и имя файла
+    setFileName(fileItem.path);
     
     try {
       // Загружаем содержимое файла
