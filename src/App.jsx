@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { marked } from "marked";
 import hljs from "highlight.js";
@@ -37,6 +37,12 @@ function App() {
   const [fileName, setFileName] = useState("untitled.md");
   const [isPreview, setIsPreview] = useState(false);
   const textareaRef = useRef(null);
+
+  useEffect(() => {
+    if (isPreview) {
+      hljs.highlightAll();
+    }
+  }, [isPreview, content]);
 
   const handleSave = async () => {
     try {

@@ -122,11 +122,30 @@
 .markdown-body code {
   color: #c7254e;
   background: #f9f2f4;
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 85%;
 }
 
 .markdown-body pre {
   background: #f6f8fa;
   color: #222;
+  padding: 16px;
+  border-radius: 6px;
+  overflow: auto;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.markdown-body pre code {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
 }
 
 .markdown-body blockquote {
