@@ -198,6 +198,59 @@ async fn create_file(path: String) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+async fn rename_file(old_path: String, new_path: String) -> Result<(), String> {
+    fs::rename(old_path, new_path)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn delete_file(path: String) -> Result<(), String> {
+    let path_obj = std::path::Path::new(&path);
+    
+    if path_obj.is_dir() {
+        fs::remove_dir_all(path)
+            .map_err(|e| e.to_string())
+    } else {
+        fs::remove_file(path)
+            .map_err(|e| e.to_string())
+    }
+}
+
+#[tauri::command]
+async fn copy_file(source_path: String, destination_path: String) -> Result<(), String> {
+    let source = std::path::Path::new(&source_path);
+    
+    if source.is_dir() {
+        // Для директорий используем copy_dir_all
+        copy_dir_all(source, std::path::Path::new(&destination_path))
+            .map_err(|e| e.to_string())
+    } else {
+        // Для файлов используем стандартную функцию copy
+        fs::copy(source_path, destination_path)
+            .map_err(|e| e.to_string())?;
+        Ok(())
+    }
+}
+
+// Вспомогательная функция для рекурсивного копирования директорий
+fn copy_dir_all(src: &std::path::Path, dst: &std::path::Path) -> std::io::Result<()> {
+    fs::create_dir_all(dst)?;
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let ty = entry.file_type()?;
+        let src_path = entry.path();
+        let dst_path = dst.join(entry.file_name());
+        
+        if ty.is_dir() {
+            copy_dir_all(&src_path, &dst_path)?;
+        } else if ty.is_file() {
+            fs::copy(&src_path, &dst_path)?;
+        }
+    }
+    Ok(())
+}
+
 fn main() {
     tauri::Builder::default()
         .setup(|app| {
@@ -266,7 +319,10 @@ fn main() {
             select_directory,
             save_directory_history,
             load_directory_history,
-            create_file
+            create_file,
+            rename_file,
+            delete_file,
+            copy_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,16 +1,19 @@
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faFolder, faFolderOpen, faFile, faPlus } from '@fortawesome/free-solid-svg-icons';
+import { faFolder, faFolderOpen, faFile, faPlus, faPen, faTrash, faCopy, faArrowRight } from '@fortawesome/free-solid-svg-icons';
 
 function FileExplorer({ onFileSelect, directoryPath, currentFile }) {
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [contextMenu, setContextMenu] = useState({ show: false, x: 0, y: 0 });
+  const [contextMenu, setContextMenu] = useState({ show: false, x: 0, y: 0, item: null });
   const [newFileName, setNewFileName] = useState("");
   const [isCreatingFile, setIsCreatingFile] = useState(false);
+  const [isRenamingFile, setIsRenamingFile] = useState(false);
+  const [renameItem, setRenameItem] = useState(null);
   const contextMenuRef = useRef(null);
   const newFileInputRef = useRef(null);
+  const renameInputRef = useRef(null);
 
   const loadDirectoryContents = async (path = directoryPath) => {
     try {
@@ -35,7 +38,7 @@ function FileExplorer({ onFileSelect, directoryPath, currentFile }) {
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (contextMenuRef.current && !contextMenuRef.current.contains(event.target)) {
-        setContextMenu({ show: false, x: 0, y: 0 });
+        setContextMenu({ show: false, x: 0, y: 0, item: null });
       }
     };
 
@@ -52,6 +55,13 @@ function FileExplorer({ onFileSelect, directoryPath, currentFile }) {
     }
   }, [isCreatingFile]);
 
+  // Фокус на поле ввода при переименовании файла
+  useEffect(() => {
+    if (isRenamingFile && renameInputRef.current) {
+      renameInputRef.current.focus();
+    }
+  }, [isRenamingFile]);
+
   // Обработчик клика по файлу или директории
   const handleItemClick = (item) => {
     if (item.is_dir) {
@@ -63,17 +73,19 @@ function FileExplorer({ onFileSelect, directoryPath, currentFile }) {
     }
   };
 
-  const handleContextMenu = (e) => {
+  const handleContextMenu = (e, item = null) => {
     e.preventDefault();
+    e.stopPropagation();
     setContextMenu({
       show: true,
       x: e.clientX,
-      y: e.clientY
+      y: e.clientY,
+      item: item
     });
   };
 
   const handleCreateNewFile = async () => {
-    setContextMenu({ show: false, x: 0, y: 0 });
+    setContextMenu({ show: false, x: 0, y: 0, item: null });
     setIsCreatingFile(true);
     setNewFileName("");
   };
@@ -100,8 +112,79 @@ function FileExplorer({ onFileSelect, directoryPath, currentFile }) {
     }
   };
 
+  const handleRenameFile = () => {
+    setContextMenu({ show: false, x: 0, y: 0, item: null });
+    if (contextMenu.item) {
+      setRenameItem(contextMenu.item);
+      setNewFileName(contextMenu.item.name);
+      setIsRenamingFile(true);
+    }
+  };
+
+  const handleRenameSubmit = async (e) => {
+    if (e.key === "Enter" && newFileName.trim() && renameItem) {
+      try {
+        const oldPath = renameItem.path;
+        const newPath = oldPath.substring(0, oldPath.lastIndexOf('/') + 1) + newFileName.trim();
+        
+        await invoke("rename_file", { oldPath, newPath });
+        setIsRenamingFile(false);
+        setRenameItem(null);
+        loadDirectoryContents();
+        
+        // Если это был открытый файл, обновляем его путь
+        if (currentFile?.path === oldPath) {
+          onFileSelect({
+            name: newFileName.trim(),
+            path: newPath,
+            is_dir: renameItem.is_dir
+          });
+        }
+      } catch (error) {
+        console.error("Ошибка при переименовании файла:", error);
+      }
+    } else if (e.key === "Escape") {
+      setIsRenamingFile(false);
+      setRenameItem(null);
+    }
+  };
+
+  const handleDeleteFile = async () => {
+    setContextMenu({ show: false, x: 0, y: 0, item: null });
+    if (contextMenu.item) {
+      try {
+        const result = await invoke("delete_file", { path: contextMenu.item.path });
+        loadDirectoryContents();
+      } catch (error) {
+        console.error("Ошибка при удалении файла:", error);
+      }
+    }
+  };
+
+  const handleCopyFile = async () => {
+    setContextMenu({ show: false, x: 0, y: 0, item: null });
+    if (contextMenu.item) {
+      try {
+        // Получаем новое имя файла (добавляем "копия")
+        const fileName = contextMenu.item.name;
+        const extension = fileName.includes('.') ? fileName.substring(fileName.lastIndexOf('.')) : '';
+        const baseName = fileName.includes('.') ? fileName.substring(0, fileName.lastIndexOf('.')) : fileName;
+        const newName = `${baseName}_копия${extension}`;
+        const newPath = contextMenu.item.path.substring(0, contextMenu.item.path.lastIndexOf('/') + 1) + newName;
+        
+        await invoke("copy_file", { 
+          sourcePath: contextMenu.item.path, 
+          destinationPath: newPath 
+        });
+        loadDirectoryContents();
+      } catch (error) {
+        console.error("Ошибка при копировании файла:", error);
+      }
+    }
+  };
+
   return (
-    <div className="file-explorer" onContextMenu={handleContextMenu}>
+    <div className="file-explorer">
       {loading ? (
         <div className="loading">Загрузка...</div>
       ) : (
@@ -129,20 +212,37 @@ function FileExplorer({ onFileSelect, directoryPath, currentFile }) {
             files.map((item, index) => (
               <li 
                 key={index} 
-                className={`file-item ${item.is_dir ? 'directory' : 'file'} ${currentFile?.path === item.path ? 'selected' : ''}`}
+                className={`file-item ${item.is_dir ? 'directory' : 'file'} ${currentFile?.path === item.path ? 'selected' : ''} ${isRenamingFile && renameItem?.path === item.path ? 'renaming' : ''}`}
                 onClick={() => handleItemClick(item)}
+                onContextMenu={(e) => handleContextMenu(e, item)}
               >
                 <span className="file-icon">
                   <FontAwesomeIcon icon={item.is_dir ? faFolder : faFile} />
                 </span>
-                <span className="file-name">{item.name}</span>
+                {isRenamingFile && renameItem?.path === item.path ? (
+                  <input
+                    ref={renameInputRef}
+                    type="text"
+                    value={newFileName}
+                    onChange={(e) => setNewFileName(e.target.value)}
+                    onKeyDown={handleRenameSubmit}
+                    onBlur={() => {
+                      setIsRenamingFile(false);
+                      setRenameItem(null);
+                    }}
+                    className="rename-file-input"
+                  />
+                ) : (
+                  <span className="file-name">{item.name}</span>
+                )}
               </li>
             ))
           )}
         </ul>
       )}
 
-      {contextMenu.show && (
+      {/* Глобальное контекстное меню для пустой области */}
+      {contextMenu.show && !contextMenu.item && (
         <div
           ref={contextMenuRef}
           className="context-menu"
@@ -152,6 +252,36 @@ function FileExplorer({ onFileSelect, directoryPath, currentFile }) {
             left: contextMenu.x,
           }}
         >
+          <div className="context-menu-item" onClick={handleCreateNewFile}>
+            <FontAwesomeIcon icon={faPlus} />
+            <span>Создать новый файл</span>
+          </div>
+        </div>
+      )}
+
+      {/* Контекстное меню для файла или директории */}
+      {contextMenu.show && contextMenu.item && (
+        <div
+          ref={contextMenuRef}
+          className="context-menu"
+          style={{
+            position: "fixed",
+            top: contextMenu.y,
+            left: contextMenu.x,
+          }}
+        >
+          <div className="context-menu-item" onClick={handleRenameFile}>
+            <FontAwesomeIcon icon={faPen} />
+            <span>Переименовать</span>
+          </div>
+          <div className="context-menu-item" onClick={handleDeleteFile}>
+            <FontAwesomeIcon icon={faTrash} />
+            <span>Удалить</span>
+          </div>
+          <div className="context-menu-item" onClick={handleCopyFile}>
+            <FontAwesomeIcon icon={faCopy} />
+            <span>Копировать</span>
+          </div>
           <div className="context-menu-item" onClick={handleCreateNewFile}>
             <FontAwesomeIcon icon={faPlus} />
             <span>Создать новый файл</span>
