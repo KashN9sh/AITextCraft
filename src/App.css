@@ -656,6 +656,14 @@ body {
   border-radius: 8px;
   margin-bottom: 2px;
   transition: background-color 0.18s, box-shadow 0.18s;
+  width: 100%;
+}
+
+.file-item-content {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
 }
 
 .file-item:hover {

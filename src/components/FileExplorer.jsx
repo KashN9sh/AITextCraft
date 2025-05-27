@@ -259,22 +259,35 @@ function FileExplorer({ onFileSelect, directoryPath, currentFile }) {
       }
       
       try {
-        // Если цель - директория, перемещаем в неё
+        let newPath;
+        
+        // Если цель - директория
         if (targetItem.is_dir) {
-          const newPath = `${targetItem.path}/${sourceItem.name}`;
-          await invoke("move_file", { 
-            sourcePath: sourceItem.path, 
-            destinationPath: newPath 
-          });
+          // Если директория открыта, проверяем, не перетаскиваем ли мы в её содержимое
+          if (expandedDirs.has(targetItem.path)) {
+            // Проверяем, не перетаскиваем ли мы в дочерний элемент открытой директории
+            const isOverChild = over.id.startsWith(targetItem.path + '/');
+            if (isOverChild) {
+              // Если перетаскиваем в дочерний элемент, используем путь дочернего элемента
+              newPath = `${over.id}/${sourceItem.name}`;
+            } else {
+              // Если перетаскиваем в саму открытую директорию
+              newPath = `${targetItem.path}/${sourceItem.name}`;
+            }
+          } else {
+            // Если директория закрыта, просто перемещаем в неё
+            newPath = `${targetItem.path}/${sourceItem.name}`;
+          }
         } else {
           // Если цель - файл, перемещаем в ту же директорию
           const targetDir = targetItem.path.substring(0, targetItem.path.lastIndexOf('/'));
-          const newPath = `${targetDir}/${sourceItem.name}`;
-          await invoke("move_file", { 
-            sourcePath: sourceItem.path, 
-            destinationPath: newPath 
-          });
+          newPath = `${targetDir}/${sourceItem.name}`;
         }
+        
+        await invoke("move_file", { 
+          sourcePath: sourceItem.path, 
+          destinationPath: newPath 
+        });
         
         // Обновляем все загруженные директории
         loadDirectoryContents();
@@ -284,10 +297,6 @@ function FileExplorer({ onFileSelect, directoryPath, currentFile }) {
         
         // Если перемещали открытый файл, обновляем его путь
         if (currentFile?.path === sourceItem.path) {
-          const newPath = targetItem.is_dir 
-            ? `${targetItem.path}/${sourceItem.name}`
-            : `${targetItem.path.substring(0, targetItem.path.lastIndexOf('/'))}/${sourceItem.name}`;
-            
           onFileSelect({
             ...currentFile,
             path: newPath
@@ -464,37 +473,38 @@ function FileExplorer({ onFileSelect, directoryPath, currentFile }) {
                   <Droppable id={item.path} item={item}>
                     <div
                       className={`file-item ${item.is_dir ? 'directory' : 'file'} 
-                               ${currentFile?.path === item.path ? 'selected' : ''} 
-                               ${dropTarget?.path === item.path ? 'drop-target' : ''}`}
+                               ${currentFile?.path === item.path ? 'selected' : ''}`}
                       onClick={() => handleItemClick(item)}
                       onContextMenu={(e) => handleContextMenu(e, item)}
                     >
-                      <span className="file-icon">
-                        {item.is_dir ? (
-                          expandedDirs.has(item.path) ? (
-                            <FontAwesomeIcon icon={faChevronDown} className="dir-arrow" />
-                          ) : (
-                            <FontAwesomeIcon icon={faChevronRight} className="dir-arrow" />
-                          )
-                        ) : null}
-                        <FontAwesomeIcon icon={item.is_dir ? (expandedDirs.has(item.path) ? faFolderOpen : faFolder) : faFile} />
-                      </span>
-                      {isRenamingFile && renameItem?.path === item.path ? (
-                        <input
-                          ref={renameInputRef}
-                          type="text"
-                          value={newFileName}
-                          onChange={(e) => setNewFileName(e.target.value)}
-                          onKeyDown={handleRenameSubmit}
-                          onBlur={() => {
-                            setIsRenamingFile(false);
-                            setRenameItem(null);
-                          }}
-                          className="rename-file-input"
-                        />
-                      ) : (
-                        <span className="file-name">{item.name}</span>
-                      )}
+                      <div className="file-item-content">
+                        <span className="file-icon">
+                          {item.is_dir ? (
+                            expandedDirs.has(item.path) ? (
+                              <FontAwesomeIcon icon={faChevronDown} className="dir-arrow" />
+                            ) : (
+                              <FontAwesomeIcon icon={faChevronRight} className="dir-arrow" />
+                            )
+                          ) : null}
+                          <FontAwesomeIcon icon={item.is_dir ? (expandedDirs.has(item.path) ? faFolderOpen : faFolder) : faFile} />
+                        </span>
+                        {isRenamingFile && renameItem?.path === item.path ? (
+                          <input
+                            ref={renameInputRef}
+                            type="text"
+                            value={newFileName}
+                            onChange={(e) => setNewFileName(e.target.value)}
+                            onKeyDown={handleRenameSubmit}
+                            onBlur={() => {
+                              setIsRenamingFile(false);
+                              setRenameItem(null);
+                            }}
+                            className="rename-file-input"
+                          />
+                        ) : (
+                          <span className="file-name">{item.name}</span>
+                        )}
+                      </div>
                     </div>
                     {item.is_dir && expandedDirs.has(item.path) && subDirs[item.path] && (
                       <ul className="file-list">
@@ -698,9 +708,11 @@ function Droppable({ id, item, children }) {
   const style = {
     backgroundColor: isOver && item.is_dir ? 'rgba(255, 187, 108, 0.2)' : undefined,
     borderRadius: isOver && item.is_dir ? '4px' : undefined,
-    outline: isOver && item.is_dir ? '2px dashed var(--primary-dark)' : undefined,
     padding: isOver && item.is_dir ? '4px' : undefined,
     margin: isOver && item.is_dir ? '-4px' : undefined,
+    width: '100%',
+    display: 'flex',
+    flexDirection: 'column'
   };
 
   return (
