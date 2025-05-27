@@ -4,6 +4,8 @@ import { marked } from "marked";
 import hljs from "highlight.js";
 import "highlight.js/styles/github.css";
 import "./App.css";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faLink } from '@fortawesome/free-solid-svg-icons';
 
 // Настраиваем marked для использования highlight.js и поддержки чекбоксов
 marked.setOptions({
@@ -262,7 +264,7 @@ function App() {
             <button onClick={() => insertAtCursor("*", "*")} title="Курсив"><i>I</i></button>
             <button onClick={() => insertAtCursor("# ")} title="Заголовок">H1</button>
             <button onClick={() => insertAtCursor("- ")} title="Список">•</button>
-            <button onClick={() => insertAtCursor("[текст](url)")} title="Ссылка">🔗</button>
+            <button onClick={() => insertAtCursor("[текст](url)")} title="Ссылка"><FontAwesomeIcon icon={faLink} /></button>
             <button onClick={() => insertAtCursor("`", "`")} title="Код">&lt;/&gt;</button>
             <button onClick={() => insertAtCursor("> ")} title="Цитата">❝</button>
           </div>
