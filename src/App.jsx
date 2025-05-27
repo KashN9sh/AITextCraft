@@ -352,11 +352,11 @@ function App() {
           
           {isPreview ? (
             <div>
-              <div className="preview-toolbar">
+              <div className="quick-insert-bar">
                 <div className="spacer"></div>
                 <button 
                   onClick={() => setIsPreview(!isPreview)} 
-                  className="preview-button"
+                  className="toolbar-button"
                   title="Редактировать"
                 >
                   <FontAwesomeIcon icon={faEdit} />

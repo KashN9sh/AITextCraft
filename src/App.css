@@ -1145,43 +1145,59 @@ body {
 }
 
 .context-menu {
-  background: white;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  padding: 4px 0;
+  background: var(--editor-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 2px 12px var(--shadow-color);
+  padding: 0;
   z-index: 1000;
+  min-width: 200px;
 }
 
 .context-menu-item {
-  padding: 8px 16px;
+  padding: 9px 18px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   cursor: pointer;
-  color: #333;
+  color: var(--text-color);
+  transition: all 0.2s ease-in-out;
+  font-size: 0.97em;
+  border-radius: 8px;
 }
 
 .context-menu-item:hover {
-  background-color: #f5f5f5;
+  background-color: var(--primary-light);
+  color: var(--primary-dark);
+}
+
+.context-menu-item svg {
+  color: var(--primary-dark);
+  font-size: 1.1em;
 }
 
 .new-file {
-  background-color: #f8f9fa;
+  background-color: var(--primary-light);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  margin: 4px 0;
 }
 
 .new-file-input {
   border: none;
   background: transparent;
-  padding: 4px;
+  padding: 8px;
   width: 100%;
-  font-size: inherit;
-  color: inherit;
-  outline: none;
+  color: var(--text-color);
+  font-size: 0.95em;
+  font-family: inherit;
 }
 
 .new-file-input:focus {
-  background-color: #fff;
-  box-shadow: 0 0 0 2px #007bff;
-  border-radius: 2px;
+  outline: none;
+}
+
+.new-file-input::placeholder {
+  color: var(--text-color);
+  opacity: 0.6;
 }
