@@ -3,9 +3,10 @@
 
 use std::fs;
 use std::env;
-use std::path::{PathBuf, Path};
+use std::path::PathBuf;
 use tauri::Manager;
-use std::collections::HashSet;
+use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
+use tauri::Emitter;
 
 #[derive(serde::Serialize)]
 struct FileItem {
@@ -161,6 +162,65 @@ async fn load_directory_history() -> Result<Vec<DirectoryHistory>, String> {
 
 fn main() {
     tauri::Builder::default()
+        .setup(|app| {
+            // Создаем меню приложения
+            let file_menu = SubmenuBuilder::new(app, "Файл")
+                .item(&MenuItemBuilder::with_id("save", "Сохранить")
+                    .accelerator("cmdOrControl+S")
+                    .build(app)?)
+                .item(&MenuItemBuilder::with_id("load", "Загрузить")
+                    .accelerator("cmdOrControl+O")
+                    .build(app)?)
+                .separator()
+                .item(&MenuItemBuilder::with_id("quit", "Выход")
+                    .accelerator("cmdOrControl+Q")
+                    .build(app)?)
+                .build()?;
+
+            let edit_menu = SubmenuBuilder::new(app, "Правка")
+                .item(&MenuItemBuilder::with_id("copy", "Копировать")
+                    .accelerator("cmdOrControl+C")
+                    .build(app)?)
+                .item(&MenuItemBuilder::with_id("cut", "Вырезать")
+                    .accelerator("cmdOrControl+X")
+                    .build(app)?)
+                .item(&MenuItemBuilder::with_id("paste", "Вставить")
+                    .accelerator("cmdOrControl+V")
+                    .build(app)?)
+                .build()?;
+
+            let view_menu = SubmenuBuilder::new(app, "Вид")
+                .item(&MenuItemBuilder::with_id("preview", "Предпросмотр")
+                    .accelerator("cmdOrControl+P")
+                    .build(app)?)
+                .build()?;
+
+            let menu = MenuBuilder::new(app)
+                .items(&[&file_menu, &edit_menu, &view_menu])
+                .build()?;
+
+            app.set_menu(menu)?;
+
+            app.on_menu_event(|app, event| {
+                match event.id().0.as_str() {
+                    "save" => {
+                        app.emit("menu-save", ()).unwrap();
+                    }
+                    "load" => {
+                        app.emit("menu-load", ()).unwrap();
+                    }
+                    "preview" => {
+                        app.emit("menu-preview", ()).unwrap();
+                    }
+                    "quit" => {
+                        app.exit(0);
+                    }
+                    _ => {}
+                }
+            });
+
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             save_file,
             load_file,

@@ -8,6 +8,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faLink, faSave, faFolderOpen, faEye, faEdit, faHome } from '@fortawesome/free-solid-svg-icons';
 import FileExplorer from "./components/FileExplorer";
 import WelcomeScreen from "./components/WelcomeScreen";
+import { listen } from '@tauri-apps/api/event';
 
 // Настраиваем marked для использования highlight.js и поддержки чекбоксов
 marked.setOptions({
@@ -50,6 +51,31 @@ function App() {
       hljs.highlightAll();
     }
   }, [isPreview, content]);
+
+  // Добавляем обработчики событий меню
+  useEffect(() => {
+    // Обработчик события сохранения из меню
+    const unlistenSave = listen('menu-save', () => {
+      handleSave();
+    });
+
+    // Обработчик события загрузки из меню
+    const unlistenLoad = listen('menu-load', () => {
+      handleLoad();
+    });
+
+    // Обработчик события предпросмотра из меню
+    const unlistenPreview = listen('menu-preview', () => {
+      setIsPreview(!isPreview);
+    });
+
+    // Очистка обработчиков при размонтировании компонента
+    return () => {
+      unlistenSave.then(unlisten => unlisten());
+      unlistenLoad.then(unlisten => unlisten());
+      unlistenPreview.then(unlisten => unlisten());
+    };
+  }, [isPreview]); // Зависимость от isPreview для корректного переключения
 
   const handleSave = async () => {
     try {
@@ -298,30 +324,6 @@ function App() {
             >
               <FontAwesomeIcon icon={faFolderOpen} />
             </button>
-            
-            <input
-              type="text"
-              value={fileName}
-              onChange={(e) => setFileName(e.target.value)}
-              className="filename-input"
-              placeholder="Имя файла..."
-            />
-            
-            <button onClick={handleSave} className="toolbar-button" title="Сохранить">
-              <FontAwesomeIcon icon={faSave} />
-            </button>
-            
-            <button onClick={handleLoad} className="toolbar-button" title="Загрузить">
-              <FontAwesomeIcon icon={faFolderOpen} />
-            </button>
-            
-            <button 
-              onClick={() => setIsPreview(!isPreview)} 
-              className="toolbar-button"
-              title={isPreview ? "Редактировать" : "Предпросмотр"}
-            >
-              <FontAwesomeIcon icon={isPreview ? faEdit : faEye} />
-            </button>
           </div>
           
           {/* Панель быстрых вставок */}
@@ -334,14 +336,34 @@ function App() {
               <button onClick={() => insertAtCursor("[текст](url)")} title="Ссылка"><FontAwesomeIcon icon={faLink} /></button>
               <button onClick={() => insertAtCursor("`", "`")} title="Код">&lt;/&gt;</button>
               <button onClick={() => insertAtCursor("> ")} title="Цитата">❝</button>
+              <div className="spacer"></div>
+              <button 
+                onClick={() => setIsPreview(!isPreview)} 
+                className="preview-button"
+                title={isPreview ? "Редактировать" : "Предпросмотр"}
+              >
+                <FontAwesomeIcon icon={isPreview ? faEdit : faEye} />
+              </button>
             </div>
           )}
           
           {isPreview ? (
-            <div 
-              className="preview markdown-body"
-              dangerouslySetInnerHTML={renderMarkdown()}
-            />
+            <div>
+              <div className="preview-toolbar">
+                <div className="spacer"></div>
+                <button 
+                  onClick={() => setIsPreview(!isPreview)} 
+                  className="preview-button"
+                  title="Редактировать"
+                >
+                  <FontAwesomeIcon icon={faEdit} />
+                </button>
+              </div>
+              <div 
+                className="preview markdown-body"
+                dangerouslySetInnerHTML={renderMarkdown()}
+              />
+            </div>
           ) : (
             <textarea
               ref={textareaRef}
