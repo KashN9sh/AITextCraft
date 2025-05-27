@@ -5,7 +5,8 @@ import hljs from "highlight.js";
 import "highlight.js/styles/github.css";
 import "./App.css";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faLink } from '@fortawesome/free-solid-svg-icons';
+import { faLink, faSave, faFolderOpen, faEye, faEdit } from '@fortawesome/free-solid-svg-icons';
+import FileExplorer from "./components/FileExplorer";
 
 // Настраиваем marked для использования highlight.js и поддержки чекбоксов
 marked.setOptions({
@@ -38,6 +39,7 @@ function App() {
   const [content, setContent] = useState("");
   const [fileName, setFileName] = useState("untitled.md");
   const [isPreview, setIsPreview] = useState(false);
+  const [isExplorerOpen, setIsExplorerOpen] = useState(true);
   const textareaRef = useRef(null);
 
   useEffect(() => {
@@ -60,6 +62,20 @@ function App() {
       const loadedContent = await invoke("load_file", { fileName });
       setContent(loadedContent);
     } catch (error) {
+      alert("Ошибка при загрузке файла: " + error);
+    }
+  };
+
+  const handleFileSelect = async (fileItem) => {
+    // Устанавливаем имя файла
+    setFileName(fileItem.name);
+    
+    try {
+      // Загружаем содержимое файла
+      const loadedContent = await invoke("load_file", { fileName: fileItem.path });
+      setContent(loadedContent);
+    } catch (error) {
+      console.error("Ошибка при загрузке файла:", error);
       alert("Ошибка при загрузке файла: " + error);
     }
   };
@@ -228,62 +244,87 @@ function App() {
   };
 
   return (
-    <main className="container">
+    <main className="app-container">
       <header className="app-header">
         <div className="app-logo">
           <img src="/icon.svg" alt="AITextCraft Logo" />
           <h1>AITextCraft</h1>
         </div>
       </header>
-      <div className="editor-container">
-        <div className="toolbar">
-          <input
-            type="text"
-            value={fileName}
-            onChange={(e) => setFileName(e.target.value)}
-            className="filename-input"
-            placeholder="Имя файла..."
-          />
-          <button onClick={handleSave} className="toolbar-button">
-            Сохранить
-          </button>
-          <button onClick={handleLoad} className="toolbar-button">
-            Загрузить
-          </button>
-          <button 
-            onClick={() => setIsPreview(!isPreview)} 
-            className="toolbar-button"
-          >
-            {isPreview ? "Редактировать" : "Предпросмотр"}
-          </button>
-        </div>
-        {/* Панель быстрых вставок */}
-        {!isPreview && (
-          <div className="quick-insert-bar">
-            <button onClick={() => insertAtCursor("**", "**")} title="Жирный"><b>B</b></button>
-            <button onClick={() => insertAtCursor("*", "*")} title="Курсив"><i>I</i></button>
-            <button onClick={() => insertAtCursor("# ")} title="Заголовок">H1</button>
-            <button onClick={() => insertAtCursor("- ")} title="Список">•</button>
-            <button onClick={() => insertAtCursor("[текст](url)")} title="Ссылка"><FontAwesomeIcon icon={faLink} /></button>
-            <button onClick={() => insertAtCursor("`", "`")} title="Код">&lt;/&gt;</button>
-            <button onClick={() => insertAtCursor("> ")} title="Цитата">❝</button>
+      
+      <div className="main-content">
+        {/* Файловый проводник */}
+        {isExplorerOpen && (
+          <div className="file-explorer-container">
+            <FileExplorer onFileSelect={handleFileSelect} />
           </div>
         )}
-        {isPreview ? (
-          <div 
-            className="preview markdown-body"
-            dangerouslySetInnerHTML={renderMarkdown()}
-          />
-        ) : (
-          <textarea
-            ref={textareaRef}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            className="editor"
-            placeholder="Введите Markdown текст здесь..."
-            onKeyDown={handleEditorKeyDown}
-          />
-        )}
+        
+        {/* Редактор */}
+        <div className="editor-container">
+          <div className="toolbar">
+            <button
+              onClick={() => setIsExplorerOpen(!isExplorerOpen)}
+              className="toolbar-button"
+              title={isExplorerOpen ? "Скрыть проводник" : "Показать проводник"}
+            >
+              <FontAwesomeIcon icon={faFolderOpen} />
+            </button>
+            
+            <input
+              type="text"
+              value={fileName}
+              onChange={(e) => setFileName(e.target.value)}
+              className="filename-input"
+              placeholder="Имя файла..."
+            />
+            
+            <button onClick={handleSave} className="toolbar-button" title="Сохранить">
+              <FontAwesomeIcon icon={faSave} />
+            </button>
+            
+            <button onClick={handleLoad} className="toolbar-button" title="Загрузить">
+              <FontAwesomeIcon icon={faFolderOpen} />
+            </button>
+            
+            <button 
+              onClick={() => setIsPreview(!isPreview)} 
+              className="toolbar-button"
+              title={isPreview ? "Редактировать" : "Предпросмотр"}
+            >
+              <FontAwesomeIcon icon={isPreview ? faEdit : faEye} />
+            </button>
+          </div>
+          
+          {/* Панель быстрых вставок */}
+          {!isPreview && (
+            <div className="quick-insert-bar">
+              <button onClick={() => insertAtCursor("**", "**")} title="Жирный"><b>B</b></button>
+              <button onClick={() => insertAtCursor("*", "*")} title="Курсив"><i>I</i></button>
+              <button onClick={() => insertAtCursor("# ")} title="Заголовок">H1</button>
+              <button onClick={() => insertAtCursor("- ")} title="Список">•</button>
+              <button onClick={() => insertAtCursor("[текст](url)")} title="Ссылка"><FontAwesomeIcon icon={faLink} /></button>
+              <button onClick={() => insertAtCursor("`", "`")} title="Код">&lt;/&gt;</button>
+              <button onClick={() => insertAtCursor("> ")} title="Цитата">❝</button>
+            </div>
+          )}
+          
+          {isPreview ? (
+            <div 
+              className="preview markdown-body"
+              dangerouslySetInnerHTML={renderMarkdown()}
+            />
+          ) : (
+            <textarea
+              ref={textareaRef}
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              className="editor"
+              placeholder="Введите Markdown текст здесь..."
+              onKeyDown={handleEditorKeyDown}
+            />
+          )}
+        </div>
       </div>
     </main>
   );
