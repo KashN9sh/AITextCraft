@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { marked } from "marked";
 import hljs from "highlight.js";
@@ -52,6 +52,15 @@ function App() {
     }
   }, [isPreview, content]);
 
+  const handleSave = useCallback(async () => {
+    try {
+      await invoke("save_file", { content, fileName });
+      alert("Файл успешно сохранен!");
+    } catch (error) {
+      alert("Ошибка при сохранении файла: " + error);
+    }
+  }, [content, fileName]);
+
   // Добавляем обработчики событий меню
   useEffect(() => {
     // Обработчик события сохранения из меню
@@ -75,24 +84,7 @@ function App() {
       unlistenLoad.then(unlisten => unlisten());
       unlistenPreview.then(unlisten => unlisten());
     };
-  }, [isPreview]); // Зависимость от isPreview для корректного переключения
-
-  const handleSave = async () => {
-    try {
-      // Если мы открыли файл из проводника, используем полный путь для сохранения
-      if (currentDirectory && fileName.indexOf('/') === -1 && fileName.indexOf('\\') === -1) {
-        // Если fileName просто имя файла без пути, добавляем текущую директорию
-        const fullPath = `${currentDirectory.path}/${fileName}`;
-        await invoke("save_file", { content, fileName: fullPath });
-      } else {
-        // Иначе используем fileName как есть (это может быть полный путь или имя файла)
-        await invoke("save_file", { content, fileName });
-      }
-      alert("Файл успешно сохранен!");
-    } catch (error) {
-      alert("Ошибка при сохранении файла: " + error);
-    }
-  };
+  }, [handleSave, isPreview]); // Добавляем handleSave и isPreview в зависимости
 
   const handleLoad = async () => {
     try {

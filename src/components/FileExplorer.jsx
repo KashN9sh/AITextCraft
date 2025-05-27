@@ -85,6 +85,13 @@ function FileExplorer({ onFileSelect, directoryPath }) {
         await invoke("create_file", { path: fullPath });
         setIsCreatingFile(false);
         loadDirectoryContents(); // Перезагружаем список файлов
+        
+        // Открываем созданный файл в редакторе
+        onFileSelect({
+          name: newFileName.trim(),
+          path: fullPath,
+          is_dir: false
+        });
       } catch (error) {
         console.error("Ошибка при создании файла:", error);
       }
