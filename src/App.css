@@ -1146,34 +1146,34 @@ body {
 
 /* Стили для контекстного меню и его элементов */
 .context-menu {
-  background-color: #ffffff;
+  background-color: #fff;
   border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 6px 0;
-  min-width: 200px;
-  box-shadow: 0 4px 15px var(--shadow-color);
+  border-radius: 6px;
+  padding: 0;
+  min-width: 160px;
+  box-shadow: 0 2px 8px var(--shadow-color);
   z-index: 1000;
+  font-size: 13px;
+  overflow: hidden;
 }
 
 .context-menu-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
+  padding: 7px 14px;
   cursor: pointer;
-  transition: background-color 0.2s ease;
-  font-size: 14px;
+  transition: background-color 0.15s;
   color: var(--text-color);
+  background: none;
+  border: none;
 }
 
 .context-menu-item:hover {
   background-color: var(--primary-light);
 }
 
-.context-menu-item svg {
-  color: var(--primary-dark);
-  width: 16px;
-  height: 16px;
+.context-menu-item + .context-menu-item {
+  border-top: none;
 }
 
 /* Стили для поля ввода при создании нового файла */

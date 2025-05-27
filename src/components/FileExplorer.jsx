@@ -253,7 +253,6 @@ function FileExplorer({ onFileSelect, directoryPath, currentFile }) {
           }}
         >
           <div className="context-menu-item" onClick={handleCreateNewFile}>
-            <FontAwesomeIcon icon={faPlus} />
             <span>Создать новый файл</span>
           </div>
         </div>
@@ -271,19 +270,15 @@ function FileExplorer({ onFileSelect, directoryPath, currentFile }) {
           }}
         >
           <div className="context-menu-item" onClick={handleRenameFile}>
-            <FontAwesomeIcon icon={faPen} />
             <span>Переименовать</span>
           </div>
           <div className="context-menu-item" onClick={handleDeleteFile}>
-            <FontAwesomeIcon icon={faTrash} />
             <span>Удалить</span>
           </div>
           <div className="context-menu-item" onClick={handleCopyFile}>
-            <FontAwesomeIcon icon={faCopy} />
             <span>Копировать</span>
           </div>
           <div className="context-menu-item" onClick={handleCreateNewFile}>
-            <FontAwesomeIcon icon={faPlus} />
             <span>Создать новый файл</span>
           </div>
         </div>
