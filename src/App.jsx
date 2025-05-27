@@ -302,6 +302,7 @@ function App() {
             <FileExplorer 
               onFileSelect={handleFileSelect} 
               directoryPath={currentDirectory?.path}
+              currentFile={{ path: fileName }}
             />
           </div>
         )}

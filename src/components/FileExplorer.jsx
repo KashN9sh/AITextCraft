@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFolder, faFolderOpen, faFile, faPlus } from '@fortawesome/free-solid-svg-icons';
 
-function FileExplorer({ onFileSelect, directoryPath }) {
+function FileExplorer({ onFileSelect, directoryPath, currentFile }) {
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [contextMenu, setContextMenu] = useState({ show: false, x: 0, y: 0 });
@@ -129,7 +129,7 @@ function FileExplorer({ onFileSelect, directoryPath }) {
             files.map((item, index) => (
               <li 
                 key={index} 
-                className={`file-item ${item.is_dir ? 'directory' : 'file'}`}
+                className={`file-item ${item.is_dir ? 'directory' : 'file'} ${currentFile?.path === item.path ? 'selected' : ''}`}
                 onClick={() => handleItemClick(item)}
               >
                 <span className="file-icon">

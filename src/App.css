@@ -660,6 +660,16 @@ body {
   box-shadow: 0 2px 8px var(--shadow-color);
 }
 
+.file-item.selected {
+  background-color: var(--primary-color);
+  color: var(--text-color);
+  box-shadow: 0 2px 8px var(--shadow-color);
+}
+
+.file-item.selected .file-icon {
+  color: var(--text-color);
+}
+
 .file-icon {
   display: inline-flex;
   align-items: center;
