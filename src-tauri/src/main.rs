@@ -181,6 +181,23 @@ async fn load_directory_history() -> Result<Vec<DirectoryHistory>, String> {
     Ok(directories)
 }
 
+#[tauri::command]
+async fn create_file(path: String) -> Result<(), String> {
+    let file_path = std::path::Path::new(&path);
+    
+    // Проверяем, существует ли директория
+    if let Some(parent) = file_path.parent() {
+        fs::create_dir_all(parent)
+            .map_err(|e| e.to_string())?;
+    }
+    
+    // Создаем пустой файл
+    fs::File::create(file_path)
+        .map_err(|e| e.to_string())?;
+    
+    Ok(())
+}
+
 fn main() {
     tauri::Builder::default()
         .setup(|app| {
@@ -248,7 +265,8 @@ fn main() {
             get_directory_contents,
             select_directory,
             save_directory_history,
-            load_directory_history
+            load_directory_history,
+            create_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
