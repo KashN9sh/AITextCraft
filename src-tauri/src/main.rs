@@ -3,14 +3,21 @@
 
 use std::fs;
 use std::env;
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
 use tauri::Manager;
+use std::collections::HashSet;
 
 #[derive(serde::Serialize)]
 struct FileItem {
     name: String,
     path: String,
     is_dir: bool,
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
+struct DirectoryHistory {
+    path: String,
+    name: String,
 }
 
 #[tauri::command]
@@ -92,9 +99,76 @@ async fn get_directory_contents(path: Option<String>) -> Result<Vec<FileItem>, S
     Ok(items)
 }
 
+#[tauri::command]
+async fn select_directory() -> Result<Option<DirectoryHistory>, String> {
+    let file_dialog = rfd::AsyncFileDialog::new()
+        .set_directory("/")
+        .pick_folder()
+        .await;
+        
+    match file_dialog {
+        Some(folder) => {
+            let path = folder.path().to_string_lossy().to_string();
+            let name = folder.file_name();
+            
+            Ok(Some(DirectoryHistory { path, name }))
+        },
+        None => Ok(None), // Пользователь отменил выбор
+    }
+}
+
+#[tauri::command]
+async fn save_directory_history(directories: Vec<DirectoryHistory>) -> Result<(), String> {
+    let config_dir = dirs::config_dir()
+        .ok_or_else(|| "Не удалось получить директорию конфигурации".to_string())?;
+    
+    let app_config_dir = config_dir.join("aitextcraft");
+    fs::create_dir_all(&app_config_dir)
+        .map_err(|e| e.to_string())?;
+    
+    let history_path = app_config_dir.join("directory_history.json");
+    
+    // Сохраняем историю в JSON файл
+    let json = serde_json::to_string(&directories)
+        .map_err(|e| e.to_string())?;
+    
+    fs::write(history_path, json)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn load_directory_history() -> Result<Vec<DirectoryHistory>, String> {
+    let config_dir = dirs::config_dir()
+        .ok_or_else(|| "Не удалось получить директорию конфигурации".to_string())?;
+    
+    let app_config_dir = config_dir.join("aitextcraft");
+    let history_path = app_config_dir.join("directory_history.json");
+    
+    // Проверяем, существует ли файл истории
+    if !history_path.exists() {
+        return Ok(Vec::new()); // Пустая история
+    }
+    
+    // Загружаем историю из JSON файла
+    let json = fs::read_to_string(history_path)
+        .map_err(|e| e.to_string())?;
+    
+    let directories: Vec<DirectoryHistory> = serde_json::from_str(&json)
+        .map_err(|e| e.to_string())?;
+    
+    Ok(directories)
+}
+
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![save_file, load_file, get_directory_contents])
+        .invoke_handler(tauri::generate_handler![
+            save_file,
+            load_file,
+            get_directory_contents,
+            select_directory,
+            save_directory_history,
+            load_directory_history
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

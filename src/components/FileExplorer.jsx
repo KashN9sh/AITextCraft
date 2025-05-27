@@ -1,19 +1,17 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faFolder, faFolderOpen, faFile, faArrowUp } from '@fortawesome/free-solid-svg-icons';
+import { faFolder, faFolderOpen, faFile } from '@fortawesome/free-solid-svg-icons';
 
-function FileExplorer({ onFileSelect }) {
+function FileExplorer({ onFileSelect, directoryPath }) {
   const [files, setFiles] = useState([]);
-  const [currentPath, setCurrentPath] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const loadDirectoryContents = async (path = null) => {
+  const loadDirectoryContents = async (path = directoryPath) => {
     try {
       setLoading(true);
       const contents = await invoke("get_directory_contents", { path });
       setFiles(contents);
-      setCurrentPath(path);
     } catch (error) {
       console.error("Ошибка при загрузке списка файлов:", error);
     } finally {
@@ -21,10 +19,12 @@ function FileExplorer({ onFileSelect }) {
     }
   };
 
-  // Загружаем директорию при монтировании компонента
+  // Загружаем директорию при монтировании компонента или изменении пути
   useEffect(() => {
-    loadDirectoryContents();
-  }, []);
+    if (directoryPath) {
+      loadDirectoryContents(directoryPath);
+    }
+  }, [directoryPath]);
 
   // Обработчик клика по файлу или директории
   const handleItemClick = (item) => {
@@ -37,30 +37,8 @@ function FileExplorer({ onFileSelect }) {
     }
   };
 
-  // Переход в родительскую директорию
-  const goToParentDirectory = () => {
-    if (!currentPath) return;
-    
-    // Получаем путь родительской директории
-    const parentPath = currentPath.split('/').slice(0, -1).join('/');
-    loadDirectoryContents(parentPath || null);
-  };
-
   return (
     <div className="file-explorer">
-      <div className="file-explorer-header">
-        {/* Заголовок убран */}
-        {currentPath && (
-          <button 
-            onClick={goToParentDirectory} 
-            className="parent-dir-button"
-            title="Перейти в родительскую директорию"
-          >
-            <FontAwesomeIcon icon={faArrowUp} />
-          </button>
-        )}
-      </div>
-      
       {loading ? (
         <div className="loading">Загрузка...</div>
       ) : (

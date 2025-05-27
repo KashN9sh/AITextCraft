@@ -5,8 +5,9 @@ import hljs from "highlight.js";
 import "highlight.js/styles/github.css";
 import "./App.css";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faLink, faSave, faFolderOpen, faEye, faEdit } from '@fortawesome/free-solid-svg-icons';
+import { faLink, faSave, faFolderOpen, faEye, faEdit, faHome } from '@fortawesome/free-solid-svg-icons';
 import FileExplorer from "./components/FileExplorer";
+import WelcomeScreen from "./components/WelcomeScreen";
 
 // Настраиваем marked для использования highlight.js и поддержки чекбоксов
 marked.setOptions({
@@ -40,6 +41,8 @@ function App() {
   const [fileName, setFileName] = useState("untitled.md");
   const [isPreview, setIsPreview] = useState(false);
   const [isExplorerOpen, setIsExplorerOpen] = useState(true);
+  const [currentDirectory, setCurrentDirectory] = useState(null);
+  const [showWelcome, setShowWelcome] = useState(true);
   const textareaRef = useRef(null);
 
   useEffect(() => {
@@ -78,6 +81,15 @@ function App() {
       console.error("Ошибка при загрузке файла:", error);
       alert("Ошибка при загрузке файла: " + error);
     }
+  };
+
+  const handleDirectorySelect = (directory) => {
+    setCurrentDirectory(directory);
+    setShowWelcome(false);
+  };
+
+  const handleHomeClick = () => {
+    setShowWelcome(true);
   };
 
   const renderMarkdown = () => {
@@ -243,19 +255,42 @@ function App() {
     }
   };
 
+  // Если активен приветственный экран
+  if (showWelcome) {
+    return (
+      <main className="app-container">
+        <div className="welcome-container">
+          <WelcomeScreen onSelectDirectory={handleDirectorySelect} />
+        </div>
+      </main>
+    );
+  }
+
+  // Если выбрана директория, показываем редактор и проводник
   return (
     <main className="app-container">
       <div className="main-content">
         {/* Файловый проводник */}
         {isExplorerOpen && (
           <div className="file-explorer-container">
-            <FileExplorer onFileSelect={handleFileSelect} />
+            <FileExplorer 
+              onFileSelect={handleFileSelect} 
+              directoryPath={currentDirectory?.path}
+            />
           </div>
         )}
         
         {/* Редактор */}
         <div className="editor-container">
           <div className="toolbar">
+            <button
+              onClick={handleHomeClick}
+              className="toolbar-button"
+              title="На главный экран"
+            >
+              <FontAwesomeIcon icon={faHome} />
+            </button>
+
             <button
               onClick={() => setIsExplorerOpen(!isExplorerOpen)}
               className="toolbar-button"
