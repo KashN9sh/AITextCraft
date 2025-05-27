@@ -75,17 +75,16 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 18px 22px 18px 22px;
-  gap: 1.5rem;
-  max-width: 900px;
-  margin: 0 auto;
-  width: 100%;
-  border-radius: 16px;
-  box-shadow: 0 4px 30px var(--shadow-color);
-  background-color: var(--editor-bg);
-  border: 1px solid var(--border-color);
-  position: relative;
+  height: 100%;
   overflow: hidden;
+  background: var(--editor-bg);
+  border-radius: 18px;
+  box-shadow: 0 4px 24px var(--shadow-color);
+  padding: 18px 22px 18px 22px;
+  margin-top: 8px;
+  margin-bottom: 8px;
+  min-width: 0;
+  will-change: transform, opacity;
 }
 
 .toolbar {
@@ -564,8 +563,7 @@ button:focus {
 
 /* Файловый проводник */
 .file-explorer-container {
-  width: 240px;
-  min-width: 180px;
+  min-width: 0;
   height: 100%;
   border-right: 1px solid var(--border-color);
   background-color: var(--file-explorer-bg);
@@ -579,7 +577,7 @@ button:focus {
   display: flex;
   flex-direction: column;
   position: relative;
-  transition: all var(--transition-normal) var(--ease-in-out);
+  will-change: width, transform, opacity;
 }
 
 .file-explorer {

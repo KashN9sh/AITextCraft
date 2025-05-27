@@ -317,9 +317,9 @@ function App() {
           {isExplorerOpen && (
             <motion.div 
               className="file-explorer-container"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
+              initial={{ opacity: 0, x: -20, width: 0 }}
+              animate={{ opacity: 1, x: 0, width: 240 }}
+              exit={{ opacity: 0, x: -20, width: 0 }}
               transition={{ duration: 0.3 }}
             >
               <FileExplorer 
@@ -336,7 +336,7 @@ function App() {
           className="editor-container"
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.3, duration: 0.5 }}
+          transition={{ delay: isExplorerOpen ? 0.3 : 0, duration: 0.5 }}
         >
           {/* Панель быстрых вставок */}
           <AnimatePresence>
