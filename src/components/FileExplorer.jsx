@@ -49,7 +49,7 @@ function FileExplorer({ onFileSelect }) {
   return (
     <div className="file-explorer">
       <div className="file-explorer-header">
-        <h3>Проводник</h3>
+        {/* Заголовок убран */}
         {currentPath && (
           <button 
             onClick={goToParentDirectory} 
