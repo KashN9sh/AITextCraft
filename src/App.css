@@ -601,6 +601,8 @@ body {
   display: flex;
   flex-direction: column;
   padding: 0 12px;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .file-explorer-header {
@@ -640,6 +642,7 @@ body {
   padding: 0;
   margin: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   flex: 1;
   margin-top: 8px;
 }
@@ -1234,4 +1237,21 @@ body {
   0% { background-color: #fff; }
   50% { background-color: var(--primary-color); }
   100% { background-color: var(--primary-light); }
+}
+
+/* Стили для drag and drop */
+.dragging {
+  cursor: grabbing;
+  opacity: 0.8;
+  background-color: var(--primary-light);
+  box-shadow: 0 4px 8px var(--shadow-color);
+  z-index: 100;
+  pointer-events: none;
+  position: relative;
+}
+
+.draggable-item {
+  cursor: grab;
+  user-select: none;
+  position: relative;
 }

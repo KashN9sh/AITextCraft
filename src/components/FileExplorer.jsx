@@ -2,6 +2,17 @@ import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFolder, faFolderOpen, faFile, faPlus, faPen, faTrash, faCopy, faArrowRight, faChevronRight, faChevronDown } from '@fortawesome/free-solid-svg-icons';
+import {
+  DndContext,
+  closestCenter,
+  MouseSensor,
+  TouchSensor,
+  DragOverlay,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import { restrictToVerticalAxis, restrictToWindowEdges } from '@dnd-kit/modifiers';
+import { useDraggable, useDroppable } from '@dnd-kit/core';
 
 function FileExplorer({ onFileSelect, directoryPath, currentFile }) {
   const [files, setFiles] = useState([]);
@@ -13,9 +24,28 @@ function FileExplorer({ onFileSelect, directoryPath, currentFile }) {
   const [renameItem, setRenameItem] = useState(null);
   const [expandedDirs, setExpandedDirs] = useState(new Set());
   const [subDirs, setSubDirs] = useState({});
+  const [activeDragItem, setActiveDragItem] = useState(null);
+  const [dropTarget, setDropTarget] = useState(null);
   const contextMenuRef = useRef(null);
   const newFileInputRef = useRef(null);
   const renameInputRef = useRef(null);
+
+  // Настройка сенсоров для drag and drop
+  const sensors = useSensors(
+    useSensor(MouseSensor, {
+      // Порог активации - 5 пикселей
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(TouchSensor, {
+      // Порог активации - 5 пикселей
+      activationConstraint: {
+        delay: 250,
+        tolerance: 5,
+      },
+    })
+  );
 
   const loadDirectoryContents = async (path = directoryPath) => {
     try {
@@ -207,11 +237,374 @@ function FileExplorer({ onFileSelect, directoryPath, currentFile }) {
     }
   };
 
+  // Обработчики drag and drop
+  const handleDragStart = (event) => {
+    const { active } = event;
+    setActiveDragItem(active.data.current.item);
+  };
+
+  const handleDragEnd = async (event) => {
+    const { active, over } = event;
+    
+    if (over && active.id !== over.id) {
+      const sourceItem = active.data.current.item;
+      const targetItem = over.data.current.item;
+      
+      // Проверка: нельзя перетаскивать в себя или в свои дочерние элементы
+      if (targetItem.path.startsWith(sourceItem.path + '/')) {
+        console.warn('Нельзя перетащить директорию в её собственную поддиректорию');
+        setActiveDragItem(null);
+        setDropTarget(null);
+        return;
+      }
+      
+      try {
+        // Если цель - директория, перемещаем в неё
+        if (targetItem.is_dir) {
+          const newPath = `${targetItem.path}/${sourceItem.name}`;
+          await invoke("move_file", { 
+            sourcePath: sourceItem.path, 
+            destinationPath: newPath 
+          });
+        } else {
+          // Если цель - файл, перемещаем в ту же директорию
+          const targetDir = targetItem.path.substring(0, targetItem.path.lastIndexOf('/'));
+          const newPath = `${targetDir}/${sourceItem.name}`;
+          await invoke("move_file", { 
+            sourcePath: sourceItem.path, 
+            destinationPath: newPath 
+          });
+        }
+        
+        // Обновляем все загруженные директории
+        loadDirectoryContents();
+        Object.keys(subDirs).forEach(dir => {
+          loadSubDirectory(dir);
+        });
+        
+        // Если перемещали открытый файл, обновляем его путь
+        if (currentFile?.path === sourceItem.path) {
+          const newPath = targetItem.is_dir 
+            ? `${targetItem.path}/${sourceItem.name}`
+            : `${targetItem.path.substring(0, targetItem.path.lastIndexOf('/'))}/${sourceItem.name}`;
+            
+          onFileSelect({
+            ...currentFile,
+            path: newPath
+          });
+        }
+      } catch (error) {
+        console.error("Ошибка при перемещении файла:", error);
+      }
+    }
+    
+    setActiveDragItem(null);
+    setDropTarget(null);
+  };
+
+  const handleDragOver = (event) => {
+    const { over } = event;
+    setDropTarget(over ? over.data.current.item : null);
+  };
+
   const renderFileTree = (items, level = 0) => {
     return items.map((item, index) => (
       <div key={index} style={{ marginLeft: `${level * 20}px` }}>
         <li 
-          className={`file-item ${item.is_dir ? 'directory' : 'file'} ${currentFile?.path === item.path ? 'selected' : ''} ${isRenamingFile && renameItem?.path === item.path ? 'renaming' : ''}`}
+          className={`file-item ${item.is_dir ? 'directory' : 'file'} ${currentFile?.path === item.path ? 'selected' : ''} 
+                     ${isRenamingFile && renameItem?.path === item.path ? 'renaming' : ''}`}
+          onClick={() => handleItemClick(item)}
+          onContextMenu={(e) => handleContextMenu(e, item)}
+          id={`file-${item.path}`}
+          data-droppable={true}
+        >
+          <div
+            className="draggable-item"
+            data-draggable={true}
+            draggable={false} // Отключаем нативный HTML5 drag and drop
+          >
+            <span className="file-icon">
+              {item.is_dir ? (
+                expandedDirs.has(item.path) ? (
+                  <FontAwesomeIcon icon={faChevronDown} className="dir-arrow" />
+                ) : (
+                  <FontAwesomeIcon icon={faChevronRight} className="dir-arrow" />
+                )
+              ) : null}
+              <FontAwesomeIcon icon={item.is_dir ? (expandedDirs.has(item.path) ? faFolderOpen : faFolder) : faFile} />
+            </span>
+            {isRenamingFile && renameItem?.path === item.path ? (
+              <input
+                ref={renameInputRef}
+                type="text"
+                value={newFileName}
+                onChange={(e) => setNewFileName(e.target.value)}
+                onKeyDown={handleRenameSubmit}
+                onBlur={() => {
+                  setIsRenamingFile(false);
+                  setRenameItem(null);
+                }}
+                className="rename-file-input"
+              />
+            ) : (
+              <span className="file-name">{item.name}</span>
+            )}
+          </div>
+        </li>
+        {item.is_dir && expandedDirs.has(item.path) && subDirs[item.path] && (
+          <ul className="file-list">
+            {renderFileTree(subDirs[item.path], level + 1)}
+          </ul>
+        )}
+      </div>
+    ));
+  };
+
+  // Функция для создания элементов с возможностью перетаскивания
+  const createDraggableItems = (items, level = 0) => {
+    return items.map((item, index) => (
+      <div key={index} style={{ marginLeft: `${level * 20}px` }}>
+        <div
+          className={`file-item ${item.is_dir ? 'directory' : 'file'} ${currentFile?.path === item.path ? 'selected' : ''} 
+                   ${isRenamingFile && renameItem?.path === item.path ? 'renaming' : ''}`}
+          onClick={() => handleItemClick(item)}
+          onContextMenu={(e) => handleContextMenu(e, item)}
+        >
+          <div
+            id={`draggable-${item.path}`}
+            data-id={item.path}
+          >
+            <span className="file-icon">
+              {item.is_dir ? (
+                expandedDirs.has(item.path) ? (
+                  <FontAwesomeIcon icon={faChevronDown} className="dir-arrow" />
+                ) : (
+                  <FontAwesomeIcon icon={faChevronRight} className="dir-arrow" />
+                )
+              ) : null}
+              <FontAwesomeIcon icon={item.is_dir ? (expandedDirs.has(item.path) ? faFolderOpen : faFolder) : faFile} />
+            </span>
+            {isRenamingFile && renameItem?.path === item.path ? (
+              <input
+                ref={renameInputRef}
+                type="text"
+                value={newFileName}
+                onChange={(e) => setNewFileName(e.target.value)}
+                onKeyDown={handleRenameSubmit}
+                onBlur={() => {
+                  setIsRenamingFile(false);
+                  setRenameItem(null);
+                }}
+                className="rename-file-input"
+              />
+            ) : (
+              <span className="file-name">{item.name}</span>
+            )}
+          </div>
+        </div>
+        {item.is_dir && expandedDirs.has(item.path) && subDirs[item.path] && (
+          <ul className="file-list">
+            {createDraggableItems(subDirs[item.path], level + 1)}
+          </ul>
+        )}
+      </div>
+    ));
+  };
+
+  // Функция для рендеринга перетаскиваемого элемента в оверлее
+  const renderDragOverlay = () => {
+    if (!activeDragItem) return null;
+
+    return (
+      <div className={`file-item ${activeDragItem.is_dir ? 'directory' : 'file'} dragging`}>
+        <span className="file-icon">
+          <FontAwesomeIcon icon={activeDragItem.is_dir ? faFolder : faFile} />
+        </span>
+        <span className="file-name">{activeDragItem.name}</span>
+      </div>
+    );
+  };
+
+  return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onDragOver={handleDragOver}
+      modifiers={[restrictToVerticalAxis, restrictToWindowEdges]}
+    >
+      <div className="file-explorer" style={{ overflow: 'hidden' }}>
+        {loading ? (
+          <div className="loading">Загрузка...</div>
+        ) : (
+          <ul className="file-list">
+            {isCreatingFile && (
+              <li className="file-item new-file">
+                <span className="file-icon">
+                  <FontAwesomeIcon icon={faFile} />
+                </span>
+                <input
+                  ref={newFileInputRef}
+                  type="text"
+                  value={newFileName}
+                  onChange={(e) => setNewFileName(e.target.value)}
+                  onKeyDown={handleNewFileNameSubmit}
+                  onBlur={() => setIsCreatingFile(false)}
+                  placeholder="Введите имя файла..."
+                  className="new-file-input"
+                />
+              </li>
+            )}
+            {files.length === 0 ? (
+              <li className="empty-directory">Нет файлов</li>
+            ) : (
+              files.map((item, index) => (
+                <Draggable key={item.path} id={item.path} item={item}>
+                  <Droppable id={item.path} item={item}>
+                    <div
+                      className={`file-item ${item.is_dir ? 'directory' : 'file'} 
+                               ${currentFile?.path === item.path ? 'selected' : ''} 
+                               ${dropTarget?.path === item.path ? 'drop-target' : ''}`}
+                      onClick={() => handleItemClick(item)}
+                      onContextMenu={(e) => handleContextMenu(e, item)}
+                    >
+                      <span className="file-icon">
+                        {item.is_dir ? (
+                          expandedDirs.has(item.path) ? (
+                            <FontAwesomeIcon icon={faChevronDown} className="dir-arrow" />
+                          ) : (
+                            <FontAwesomeIcon icon={faChevronRight} className="dir-arrow" />
+                          )
+                        ) : null}
+                        <FontAwesomeIcon icon={item.is_dir ? (expandedDirs.has(item.path) ? faFolderOpen : faFolder) : faFile} />
+                      </span>
+                      {isRenamingFile && renameItem?.path === item.path ? (
+                        <input
+                          ref={renameInputRef}
+                          type="text"
+                          value={newFileName}
+                          onChange={(e) => setNewFileName(e.target.value)}
+                          onKeyDown={handleRenameSubmit}
+                          onBlur={() => {
+                            setIsRenamingFile(false);
+                            setRenameItem(null);
+                          }}
+                          className="rename-file-input"
+                        />
+                      ) : (
+                        <span className="file-name">{item.name}</span>
+                      )}
+                    </div>
+                    {item.is_dir && expandedDirs.has(item.path) && subDirs[item.path] && (
+                      <ul className="file-list">
+                        {subDirs[item.path].map((subItem) => (
+                          <NestedItem 
+                            key={subItem.path} 
+                            item={subItem} 
+                            level={1} 
+                            expandedDirs={expandedDirs}
+                            subDirs={subDirs}
+                            currentFile={currentFile}
+                            dropTarget={dropTarget}
+                            handleItemClick={handleItemClick}
+                            handleContextMenu={handleContextMenu}
+                            isRenamingFile={isRenamingFile}
+                            renameItem={renameItem}
+                            newFileName={newFileName}
+                            setNewFileName={setNewFileName}
+                            setIsRenamingFile={setIsRenamingFile}
+                            setRenameItem={setRenameItem}
+                            renameInputRef={renameInputRef}
+                            handleRenameSubmit={handleRenameSubmit}
+                          />
+                        ))}
+                      </ul>
+                    )}
+                  </Droppable>
+                </Draggable>
+              ))
+            )}
+          </ul>
+        )}
+
+        {/* Глобальное контекстное меню для пустой области */}
+        {contextMenu.show && !contextMenu.item && (
+          <div
+            ref={contextMenuRef}
+            className="context-menu"
+            style={{
+              position: "fixed",
+              top: contextMenu.y,
+              left: contextMenu.x,
+            }}
+          >
+            <div className="context-menu-item" onClick={handleCreateNewFile}>
+              <span>Создать новый файл</span>
+            </div>
+          </div>
+        )}
+
+        {/* Контекстное меню для файла или директории */}
+        {contextMenu.show && contextMenu.item && (
+          <div
+            ref={contextMenuRef}
+            className="context-menu"
+            style={{
+              position: "fixed",
+              top: contextMenu.y,
+              left: contextMenu.x,
+            }}
+          >
+            <div className="context-menu-item" onClick={handleRenameFile}>
+              <span>Переименовать</span>
+            </div>
+            <div className="context-menu-item" onClick={handleDeleteFile}>
+              <span>Удалить</span>
+            </div>
+            <div className="context-menu-item" onClick={handleCopyFile}>
+              <span>Копировать</span>
+            </div>
+            <div className="context-menu-item" onClick={handleCreateNewFile}>
+              <span>Создать новый файл</span>
+            </div>
+          </div>
+        )}
+
+        <DragOverlay modifiers={[restrictToWindowEdges]}>
+          {activeDragItem && renderDragOverlay()}
+        </DragOverlay>
+      </div>
+    </DndContext>
+  );
+}
+
+// Компонент для вложенных элементов
+function NestedItem({ 
+  item, 
+  level, 
+  expandedDirs, 
+  subDirs, 
+  currentFile, 
+  dropTarget, 
+  handleItemClick, 
+  handleContextMenu,
+  isRenamingFile,
+  renameItem,
+  newFileName,
+  setNewFileName,
+  setIsRenamingFile,
+  setRenameItem,
+  renameInputRef,
+  handleRenameSubmit
+}) {
+  return (
+    <Draggable id={item.path} item={item}>
+      <Droppable id={item.path} item={item}>
+        <div 
+          style={{ marginLeft: `${level * 20}px` }}
+          className={`file-item ${item.is_dir ? 'directory' : 'file'} 
+                   ${currentFile?.path === item.path ? 'selected' : ''}`}
           onClick={() => handleItemClick(item)}
           onContextMenu={(e) => handleContextMenu(e, item)}
         >
@@ -241,89 +634,78 @@ function FileExplorer({ onFileSelect, directoryPath, currentFile }) {
           ) : (
             <span className="file-name">{item.name}</span>
           )}
-        </li>
+        </div>
         {item.is_dir && expandedDirs.has(item.path) && subDirs[item.path] && (
           <ul className="file-list">
-            {renderFileTree(subDirs[item.path], level + 1)}
+            {subDirs[item.path].map((subItem) => (
+              <NestedItem 
+                key={subItem.path} 
+                item={subItem} 
+                level={level + 1} 
+                expandedDirs={expandedDirs}
+                subDirs={subDirs}
+                currentFile={currentFile}
+                dropTarget={dropTarget}
+                handleItemClick={handleItemClick}
+                handleContextMenu={handleContextMenu}
+                isRenamingFile={isRenamingFile}
+                renameItem={renameItem}
+                newFileName={newFileName}
+                setNewFileName={setNewFileName}
+                setIsRenamingFile={setIsRenamingFile}
+                setRenameItem={setRenameItem}
+                renameInputRef={renameInputRef}
+                handleRenameSubmit={handleRenameSubmit}
+              />
+            ))}
           </ul>
         )}
-      </div>
-    ));
+      </Droppable>
+    </Draggable>
+  );
+}
+
+// Компонент-обертка для перетаскиваемых элементов
+function Draggable({ id, item, children }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id,
+    data: {
+      item
+    }
+  });
+
+  const style = transform ? {
+    transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+    opacity: isDragging ? 0.5 : 1
+  } : undefined;
+
+  return (
+    <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
+      {children}
+    </div>
+  );
+}
+
+// Компонент-обертка для областей, куда можно перетаскивать
+function Droppable({ id, item, children }) {
+  const { isOver, setNodeRef } = useDroppable({
+    id,
+    data: {
+      item
+    }
+  });
+
+  const style = {
+    backgroundColor: isOver && item.is_dir ? 'rgba(255, 187, 108, 0.2)' : undefined,
+    borderRadius: isOver && item.is_dir ? '4px' : undefined,
+    outline: isOver && item.is_dir ? '2px dashed var(--primary-dark)' : undefined,
+    padding: isOver && item.is_dir ? '4px' : undefined,
+    margin: isOver && item.is_dir ? '-4px' : undefined,
   };
 
   return (
-    <div className="file-explorer">
-      {loading ? (
-        <div className="loading">Загрузка...</div>
-      ) : (
-        <ul className="file-list">
-          {isCreatingFile && (
-            <li className="file-item new-file">
-              <span className="file-icon">
-                <FontAwesomeIcon icon={faFile} />
-              </span>
-              <input
-                ref={newFileInputRef}
-                type="text"
-                value={newFileName}
-                onChange={(e) => setNewFileName(e.target.value)}
-                onKeyDown={handleNewFileNameSubmit}
-                onBlur={() => setIsCreatingFile(false)}
-                placeholder="Введите имя файла..."
-                className="new-file-input"
-              />
-            </li>
-          )}
-          {files.length === 0 ? (
-            <li className="empty-directory">Нет файлов</li>
-          ) : (
-            renderFileTree(files)
-          )}
-        </ul>
-      )}
-
-      {/* Глобальное контекстное меню для пустой области */}
-      {contextMenu.show && !contextMenu.item && (
-        <div
-          ref={contextMenuRef}
-          className="context-menu"
-          style={{
-            position: "fixed",
-            top: contextMenu.y,
-            left: contextMenu.x,
-          }}
-        >
-          <div className="context-menu-item" onClick={handleCreateNewFile}>
-            <span>Создать новый файл</span>
-          </div>
-        </div>
-      )}
-
-      {/* Контекстное меню для файла или директории */}
-      {contextMenu.show && contextMenu.item && (
-        <div
-          ref={contextMenuRef}
-          className="context-menu"
-          style={{
-            position: "fixed",
-            top: contextMenu.y,
-            left: contextMenu.x,
-          }}
-        >
-          <div className="context-menu-item" onClick={handleRenameFile}>
-            <span>Переименовать</span>
-          </div>
-          <div className="context-menu-item" onClick={handleDeleteFile}>
-            <span>Удалить</span>
-          </div>
-          <div className="context-menu-item" onClick={handleCopyFile}>
-            <span>Копировать</span>
-          </div>
-          <div className="context-menu-item" onClick={handleCreateNewFile}>
-            <span>Создать новый файл</span>
-          </div>
-        </div>
-      )}
+    <div ref={setNodeRef} style={style}>
+      {children}
     </div>
   );
 }
