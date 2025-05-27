@@ -72,7 +72,7 @@ function WelcomeScreen({ onSelectDirectory }) {
         animate={{ opacity: 1 }}
         transition={{ delay: 0.2, duration: 0.5 }}
       >
-        <h1>AITextCraft</h1>
+        <h1>FancyTexty</h1>
         <p>Элегантный Markdown редактор</p>
       </motion.div>
 
