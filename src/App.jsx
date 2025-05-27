@@ -227,6 +227,12 @@ function App() {
 
   return (
     <main className="container">
+      <header className="app-header">
+        <div className="app-logo">
+          <img src="/icon.svg" alt="AITextCraft Logo" />
+          <h1>AITextCraft</h1>
+        </div>
+      </header>
       <div className="editor-container">
         <div className="toolbar">
           <input
