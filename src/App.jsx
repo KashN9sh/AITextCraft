@@ -153,6 +153,46 @@ function App() {
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     
+    // --- Клавиатурные сокращения ---
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      
+      switch (e.key.toLowerCase()) {
+        case 'b':
+          insertAtCursor("**", "**");
+          return;
+        case 'i':
+          insertAtCursor("*", "*");
+          return;
+        case 'k':
+          insertAtCursor("[", "](url)");
+          return;
+      }
+      
+      if (e.shiftKey) {
+        switch (e.key.toLowerCase()) {
+          case 'h':
+            insertAtCursor("# ");
+            return;
+          case 'l':
+            insertAtCursor("- ");
+            return;
+          case 'c':
+            insertAtCursor("`", "`");
+            return;
+          case 'q':
+            insertAtCursor("> ");
+            return;
+          case 't':
+            insertAtCursor("| | |\n| --- | --- |\n| | |");
+            return;
+          case 'b':
+            insertAtCursor("- [ ] ");
+            return;
+        }
+      }
+    }
+    
     // --- Автоматическое форматирование заголовков ---
     if (e.key === ' ' && content.substring(start - 1, start) === '#') {
       const before = content.substring(0, start - 1);
@@ -380,13 +420,15 @@ function App() {
                   </div>
                   <div className="quick-insert-center">
                     {[
-                      { onClick: () => insertAtCursor("**", "**"), title: "Жирный", content: <b>B</b> },
-                      { onClick: () => insertAtCursor("*", "*"), title: "Курсив", content: <i>I</i> },
-                      { onClick: () => insertAtCursor("# "), title: "Заголовок", content: "H1" },
-                      { onClick: () => insertAtCursor("- "), title: "Список", content: "•" },
-                      { onClick: () => insertAtCursor("[текст](url)"), title: "Ссылка", content: <FontAwesomeIcon icon={faLink} /> },
-                      { onClick: () => insertAtCursor("`", "`"), title: "Код", content: <>&lt;/&gt;</> },
-                      { onClick: () => insertAtCursor("> "), title: "Цитата", content: "❝" }
+                      { onClick: () => insertAtCursor("**", "**"), title: "Жирный (Ctrl/Cmd + B)", content: <b>B</b> },
+                      { onClick: () => insertAtCursor("*", "*"), title: "Курсив (Ctrl/Cmd + I)", content: <i>I</i> },
+                      { onClick: () => insertAtCursor("# "), title: "Заголовок (Ctrl/Cmd + Shift + H)", content: "H1" },
+                      { onClick: () => insertAtCursor("- "), title: "Список (Ctrl/Cmd + Shift + L)", content: "•" },
+                      { onClick: () => insertAtCursor("[текст](url)"), title: "Ссылка (Ctrl/Cmd + K)", content: <FontAwesomeIcon icon={faLink} /> },
+                      { onClick: () => insertAtCursor("`", "`"), title: "Код (Ctrl/Cmd + Shift + C)", content: <>&lt;/&gt;</> },
+                      { onClick: () => insertAtCursor("> "), title: "Цитата (Ctrl/Cmd + Shift + Q)", content: "❝" },
+                      { onClick: () => insertAtCursor("| | |\n| --- | --- |\n| | |"), title: "Таблица (Ctrl/Cmd + Shift + T)", content: "⊞" },
+                      { onClick: () => insertAtCursor("- [ ] "), title: "Чекбокс (Ctrl/Cmd + Shift + B)", content: "☐" }
                     ].map((button, index) => (
                       <motion.button
                         key={index}

@@ -328,6 +328,8 @@ body {
   gap: 0.4rem;
   justify-content: center;
   flex: 1;
+  flex-wrap: wrap;
+  padding: 0.4rem;
 }
 
 .quick-insert-right {
@@ -336,7 +338,7 @@ body {
 }
 
 .quick-insert-bar button {
-  width: 32px;
+  width: 36px;
   height: 36px;
   display: flex;
   justify-content: center;
@@ -349,7 +351,7 @@ body {
   transition: all var(--transition-fast) var(--ease-out);
   color: var(--text-color);
   padding: 0.3rem 0.6rem;
-  min-width: 32px;
+  min-width: 36px;
   position: relative;
   overflow: hidden;
 }
@@ -359,10 +361,31 @@ body {
   border-color: var(--primary-dark);
   color: var(--text-color);
   transform: translateY(-1px);
+  box-shadow: 0 2px 8px var(--shadow-color);
 }
 
 .quick-insert-bar button:active {
   transform: translateY(1px);
+}
+
+.quick-insert-bar button[title] {
+  position: relative;
+}
+
+.quick-insert-bar button[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  bottom: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--primary-dark);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8em;
+  white-space: nowrap;
+  z-index: 1000;
+  pointer-events: none;
 }
 
 .spacer {
