@@ -46,6 +46,7 @@ function App() {
   const [currentDirectory, setCurrentDirectory] = useState(null);
   const [showWelcome, setShowWelcome] = useState(true);
   const textareaRef = useRef(null);
+  const [clipboard, setClipboard] = useState("");
 
   useEffect(() => {
     if (isPreview) {
@@ -147,24 +148,138 @@ function App() {
     }, 0);
   };
 
+  // Функции для работы с буфером обмена
+  const handleCut = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = content.substring(start, end);
+    
+    setClipboard(selectedText);
+    setContent(content.substring(0, start) + content.substring(end));
+    
+    // Устанавливаем курсор после вырезанного текста
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start, start);
+    }, 0);
+  }, [content]);
+
+  const handleCopy = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = content.substring(start, end);
+    
+    setClipboard(selectedText);
+    // Копируем в системный буфер обмена
+    navigator.clipboard.writeText(selectedText).catch(err => {
+      console.error('Ошибка при копировании в буфер обмена:', err);
+    });
+  }, [content]);
+
+  const handlePaste = useCallback(async () => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    
+    try {
+      // Пытаемся получить текст из системного буфера обмена
+      const text = await navigator.clipboard.readText();
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      
+      setContent(content.substring(0, start) + text + content.substring(end));
+      
+      // Устанавливаем курсор после вставленного текста
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + text.length, start + text.length);
+      }, 0);
+    } catch (err) {
+      console.error('Ошибка при чтении из буфера обмена:', err);
+      // Если не удалось получить из системного буфера, используем локальный
+      if (clipboard) {
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        
+        setContent(content.substring(0, start) + clipboard + content.substring(end));
+        
+        setTimeout(() => {
+          textarea.focus();
+          textarea.setSelectionRange(start + clipboard.length, start + clipboard.length);
+        }, 0);
+      }
+    }
+  }, [content, clipboard]);
+
   // Обработчик нажатия клавиш в textarea
   const handleEditorKeyDown = (e) => {
     const textarea = textareaRef.current;
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     
-    // --- Клавиатурные сокращения ---
+    // --- Стандартные клавиатурные сокращения ---
     if (e.ctrlKey || e.metaKey) {
-      e.preventDefault();
-      
       switch (e.key.toLowerCase()) {
+        case 'z':
+          e.preventDefault();
+          if (e.shiftKey) {
+            // Cmd/Ctrl + Shift + Z - повторить
+            document.execCommand('redo', false, null);
+          } else {
+            // Cmd/Ctrl + Z - отменить
+            document.execCommand('undo', false, null);
+          }
+          return;
+        case 'y':
+          e.preventDefault();
+          // Cmd/Ctrl + Y - повторить (альтернатива)
+          document.execCommand('redo', false, null);
+          return;
+        case 'a':
+          e.preventDefault();
+          // Cmd/Ctrl + A - выделить всё
+          textarea.select();
+          return;
+        case 'x':
+          e.preventDefault();
+          // Cmd/Ctrl + X - вырезать
+          handleCut();
+          return;
+        case 'c':
+          e.preventDefault();
+          // Cmd/Ctrl + C - копировать
+          handleCopy();
+          return;
+        case 'v':
+          e.preventDefault();
+          // Cmd/Ctrl + V - вставить
+          handlePaste();
+          return;
+        case 's':
+          e.preventDefault();
+          // Cmd/Ctrl + S - сохранить
+          handleSave();
+          return;
+        case 'f':
+          e.preventDefault();
+          // Cmd/Ctrl + F - поиск
+          // TODO: Добавить функционал поиска
+          return;
         case 'b':
+          e.preventDefault();
           insertAtCursor("**", "**");
           return;
         case 'i':
+          e.preventDefault();
           insertAtCursor("*", "*");
           return;
         case 'k':
+          e.preventDefault();
           insertAtCursor("[", "](url)");
           return;
       }
@@ -172,21 +287,27 @@ function App() {
       if (e.shiftKey) {
         switch (e.key.toLowerCase()) {
           case 'h':
+            e.preventDefault();
             insertAtCursor("# ");
             return;
           case 'l':
+            e.preventDefault();
             insertAtCursor("- ");
             return;
           case 'c':
+            e.preventDefault();
             insertAtCursor("`", "`");
             return;
           case 'q':
+            e.preventDefault();
             insertAtCursor("> ");
             return;
           case 't':
+            e.preventDefault();
             insertAtCursor("| | |\n| --- | --- |\n| | |");
             return;
           case 'b':
+            e.preventDefault();
             insertAtCursor("- [ ] ");
             return;
         }
