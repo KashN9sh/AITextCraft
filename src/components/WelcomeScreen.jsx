@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFolder, faFolderOpen, faFolderPlus, faClock, faHistory } from '@fortawesome/free-solid-svg-icons';
-import { useSpring, animated, useTrail, useChain, useSpringRef } from 'react-spring';
+import { useSpring, animated } from 'react-spring';
 
 function WelcomeScreen({ onSelectDirectory }) {
   const [recentDirectories, setRecentDirectories] = useState([]);
@@ -22,23 +22,6 @@ function WelcomeScreen({ onSelectDirectory }) {
       tension: 300,
       friction: 20
     }
-  });
-
-  // Анимация для элементов списка
-  const listAnimation = useTrail(recentDirectories.length, {
-    from: { 
-      opacity: 0,
-      transform: 'scale(0.8)'
-    },
-    to: { 
-      opacity: 1,
-      transform: 'scale(1)'
-    },
-    config: {
-      tension: 400,
-      friction: 15
-    },
-    delay: 300
   });
 
   // Загружаем историю директорий при монтировании компонента
@@ -120,19 +103,18 @@ function WelcomeScreen({ onSelectDirectory }) {
           </animated.div>
         ) : (
           <ul className="directory-list">
-            {listAnimation.map((style, index) => (
-              <animated.li
-                key={recentDirectories[index].path}
+            {recentDirectories.map((directory) => (
+              <li
+                key={directory.path}
                 className="directory-item"
-                onClick={() => onSelectDirectory(recentDirectories[index])}
-                style={style}
+                onClick={() => onSelectDirectory(directory)}
               >
                 <FontAwesomeIcon icon={faFolderOpen} className="dir-icon" />
                 <div className="dir-info">
-                  <div className="dir-name">{recentDirectories[index].name}</div>
-                  <div className="dir-path">{recentDirectories[index].path}</div>
+                  <div className="dir-name">{directory.name}</div>
+                  <div className="dir-path">{directory.path}</div>
                 </div>
-              </animated.li>
+              </li>
             ))}
           </ul>
         )}
