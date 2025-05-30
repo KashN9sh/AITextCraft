@@ -2,10 +2,44 @@ import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFolder, faFolderOpen, faFolderPlus, faClock, faHistory } from '@fortawesome/free-solid-svg-icons';
+import { useSpring, animated, useTrail, useChain, useSpringRef } from 'react-spring';
 
 function WelcomeScreen({ onSelectDirectory }) {
   const [recentDirectories, setRecentDirectories] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Анимация панели (выпадение сверху)
+  const containerAnimation = useSpring({
+    from: { 
+      opacity: 0,
+      transform: 'translateY(-100%)'
+    },
+    to: { 
+      opacity: 1,
+      transform: 'translateY(0%)'
+    },
+    config: { 
+      tension: 300,
+      friction: 20
+    }
+  });
+
+  // Анимация для элементов списка
+  const listAnimation = useTrail(recentDirectories.length, {
+    from: { 
+      opacity: 0,
+      transform: 'scale(0.8)'
+    },
+    to: { 
+      opacity: 1,
+      transform: 'scale(1)'
+    },
+    config: {
+      tension: 400,
+      friction: 15
+    },
+    delay: 300
+  });
 
   // Загружаем историю директорий при монтировании компонента
   useEffect(() => {
@@ -59,13 +93,13 @@ function WelcomeScreen({ onSelectDirectory }) {
   };
 
   return (
-    <div className="welcome-screen">
-      <div className="welcome-header">
+    <animated.div className="welcome-screen" style={containerAnimation}>
+      <animated.div className="welcome-header" style={containerAnimation}>
         <h1>FancyTexty</h1>
         <p>Элегантный Markdown редактор</p>
-      </div>
+      </animated.div>
 
-      <div className="welcome-actions">
+      <animated.div className="welcome-actions" style={containerAnimation}>
         <button
           className="select-dir-button"
           onClick={handleSelectDirectory}
@@ -73,36 +107,37 @@ function WelcomeScreen({ onSelectDirectory }) {
           <FontAwesomeIcon icon={faFolderPlus} />
           Выбрать директорию
         </button>
-      </div>
+      </animated.div>
 
       <div className="recent-directories">
-        <h2>
+        <animated.h2 style={containerAnimation}>
           <FontAwesomeIcon icon={faHistory} />
           Недавние директории
-        </h2>
+        </animated.h2>
         {loading ? (
-          <div className="loading-history">
+          <animated.div className="loading-history" style={containerAnimation}>
             Загрузка истории...
-          </div>
+          </animated.div>
         ) : (
           <ul className="directory-list">
-            {recentDirectories.map((dir, index) => (
-              <li
-                key={dir.path}
+            {listAnimation.map((style, index) => (
+              <animated.li
+                key={recentDirectories[index].path}
                 className="directory-item"
-                onClick={() => onSelectDirectory(dir)}
+                onClick={() => onSelectDirectory(recentDirectories[index])}
+                style={style}
               >
                 <FontAwesomeIcon icon={faFolderOpen} className="dir-icon" />
                 <div className="dir-info">
-                  <div className="dir-name">{dir.name}</div>
-                  <div className="dir-path">{dir.path}</div>
+                  <div className="dir-name">{recentDirectories[index].name}</div>
+                  <div className="dir-path">{recentDirectories[index].path}</div>
                 </div>
-              </li>
+              </animated.li>
             ))}
           </ul>
         )}
       </div>
-    </div>
+    </animated.div>
   );
 }
 
