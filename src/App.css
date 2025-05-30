@@ -802,7 +802,7 @@ button:focus {
   background-color: var(--glass-bg);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  overflow-y: auto;
+  overflow: hidden;
   flex-shrink: 0;
   border-radius: 18px;
   margin-top: 8px;
@@ -822,6 +822,9 @@ button:focus {
   padding: 0 12px;
   overflow-y: auto;
   overflow-x: hidden;
+  width: 300px;
+  min-width: 300px;
+  max-width: 300px;
 }
 
 .file-explorer-header {

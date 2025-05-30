@@ -477,6 +477,26 @@ function App() {
     }
   });
 
+  // Анимация для файлового проводника
+  const explorerAnimation = useSpring({
+    from: { 
+      opacity: 0,
+      transform: 'translateX(-100%)',
+      width: 0
+    },
+    to: { 
+      opacity: isExplorerOpen ? 1 : 0,
+      transform: isExplorerOpen ? 'translateX(0%)' : 'translateX(-100%)',
+      width: isExplorerOpen ? 300 : 0
+    },
+    config: {
+      tension: 180,
+      friction: 20,
+      mass: 1,
+      clamp: true
+    }
+  });
+
   // Если активен приветственный экран
   if (showWelcome) {
     return (
@@ -493,15 +513,15 @@ function App() {
     <main className="app-container">
       <animated.div className="main-content" style={editorAnimation}>
         {/* Файловый проводник */}
-        {isExplorerOpen && (
-          <div className="file-explorer-container">
+        <animated.div className="file-explorer-container" style={explorerAnimation}>
+          <div className="file-explorer">
             <FileExplorer 
               onFileSelect={handleFileSelect} 
               directoryPath={currentDirectory?.path}
               currentFile={{ path: fileName }}
             />
           </div>
-        )}
+        </animated.div>
         
         {/* Редактор */}
         <div className="editor-container">
