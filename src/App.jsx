@@ -446,186 +446,113 @@ function App() {
   // Если активен приветственный экран
   if (showWelcome) {
     return (
-      <motion.main 
-        className="app-container"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5 }}
-      >
-        <AnimatePresence mode="wait">
-          <motion.div
-            key="welcome"
-            className="welcome-container"
-            initial={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.3 }}
-          >
-            <WelcomeScreen onSelectDirectory={handleDirectorySelect} />
-          </motion.div>
-        </AnimatePresence>
-      </motion.main>
+      <main className="app-container">
+        <div className="welcome-container">
+          <WelcomeScreen onSelectDirectory={handleDirectorySelect} />
+        </div>
+      </main>
     );
   }
 
   // Если выбрана директория, показываем редактор и проводник
   return (
-    <motion.main 
-      className="app-container"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.5 }}
-    >
-      <AnimatePresence mode="wait">
-        <motion.div 
-          key="main"
-          className="main-content"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: isExplorerOpen ? 0.3 : 0, duration: 0.5 }}
-        >
-          {/* Файловый проводник */}
-          <AnimatePresence>
-            {isExplorerOpen && (
-              <motion.div 
-                className="file-explorer-container"
-                initial={{ opacity: 0, x: -20, width: 0 }}
-                animate={{ opacity: 1, x: 0, width: 240 }}
-                exit={{ opacity: 0, x: -20, width: 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                <FileExplorer 
-                  onFileSelect={handleFileSelect} 
-                  directoryPath={currentDirectory?.path}
-                  currentFile={{ path: fileName }}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
+    <main className="app-container">
+      <div className="main-content">
+        {/* Файловый проводник */}
+        {isExplorerOpen && (
+          <div className="file-explorer-container">
+            <FileExplorer 
+              onFileSelect={handleFileSelect} 
+              directoryPath={currentDirectory?.path}
+              currentFile={{ path: fileName }}
+            />
+          </div>
+        )}
+        
+        {/* Редактор */}
+        <div className="editor-container">
+          {/* Панель быстрых вставок */}
+          {!isPreview && (
+            <div className="quick-insert-bar">
+              <div className="quick-insert-left">
+                <button
+                  onClick={handleHomeClick}
+                  className="toolbar-button"
+                  title="На главный экран"
+                >
+                  <FontAwesomeIcon icon={faHome} />
+                </button>
+                <button
+                  onClick={() => setIsExplorerOpen(!isExplorerOpen)}
+                  className="toolbar-button"
+                  title={isExplorerOpen ? "Скрыть проводник" : "Показать проводник"}
+                >
+                  <FontAwesomeIcon icon={faFolderOpen} />
+                </button>
+              </div>
+              <div className="quick-insert-center">
+                {[
+                  { onClick: () => insertAtCursor("**", "**"), title: "Жирный (Ctrl/Cmd + B)", content: <b>B</b> },
+                  { onClick: () => insertAtCursor("*", "*"), title: "Курсив (Ctrl/Cmd + I)", content: <i>I</i> },
+                  { onClick: () => insertAtCursor("# "), title: "Заголовок (Ctrl/Cmd + Shift + H)", content: "H1" },
+                  { onClick: () => insertAtCursor("- "), title: "Список (Ctrl/Cmd + Shift + L)", content: "•" },
+                  { onClick: () => insertAtCursor("[текст](url)"), title: "Ссылка (Ctrl/Cmd + K)", content: <FontAwesomeIcon icon={faLink} /> },
+                  { onClick: () => insertAtCursor("`", "`"), title: "Код (Ctrl/Cmd + Shift + C)", content: <>&lt;/&gt;</> },
+                  { onClick: () => insertAtCursor("> "), title: "Цитата (Ctrl/Cmd + Shift + Q)", content: "❝" },
+                  { onClick: () => insertAtCursor("| | |\n| --- | --- |\n| | |"), title: "Таблица (Ctrl/Cmd + Shift + T)", content: "⊞" },
+                  { onClick: () => insertAtCursor("- [ ] "), title: "Чекбокс (Ctrl/Cmd + Shift + B)", content: "☐" }
+                ].map((button, index) => (
+                  <button
+                    key={index}
+                    onClick={button.onClick}
+                    title={button.title}
+                  >
+                    {button.content}
+                  </button>
+                ))}
+              </div>
+              <div className="quick-insert-right">
+                <button 
+                  onClick={() => setIsPreview(!isPreview)} 
+                  className="toolbar-button"
+                  title={isPreview ? "Редактировать" : "Предпросмотр"}
+                >
+                  <FontAwesomeIcon icon={isPreview ? faEdit : faEye} />
+                </button>
+              </div>
+            </div>
+          )}
           
-          {/* Редактор */}
-          <motion.div 
-            className="editor-container"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: isExplorerOpen ? 0.3 : 0, duration: 0.5 }}
-          >
-            {/* Панель быстрых вставок */}
-            <AnimatePresence>
-              {!isPreview && (
-                <motion.div 
-                  className="quick-insert-bar"
-                  initial={{ opacity: 0, y: -20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.3 }}
+          {isPreview ? (
+            <div>
+              <div className="quick-insert-bar">
+                <div className="spacer"></div>
+                <button 
+                  onClick={() => setIsPreview(!isPreview)} 
+                  className="toolbar-button"
+                  title="Редактировать"
                 >
-                  <div className="quick-insert-left">
-                    <motion.button
-                      onClick={handleHomeClick}
-                      className="toolbar-button"
-                      title="На главный экран"
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      <FontAwesomeIcon icon={faHome} />
-                    </motion.button>
-                    <motion.button
-                      onClick={() => setIsExplorerOpen(!isExplorerOpen)}
-                      className="toolbar-button"
-                      title={isExplorerOpen ? "Скрыть проводник" : "Показать проводник"}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      <FontAwesomeIcon icon={faFolderOpen} />
-                    </motion.button>
-                  </div>
-                  <div className="quick-insert-center">
-                    {[
-                      { onClick: () => insertAtCursor("**", "**"), title: "Жирный (Ctrl/Cmd + B)", content: <b>B</b> },
-                      { onClick: () => insertAtCursor("*", "*"), title: "Курсив (Ctrl/Cmd + I)", content: <i>I</i> },
-                      { onClick: () => insertAtCursor("# "), title: "Заголовок (Ctrl/Cmd + Shift + H)", content: "H1" },
-                      { onClick: () => insertAtCursor("- "), title: "Список (Ctrl/Cmd + Shift + L)", content: "•" },
-                      { onClick: () => insertAtCursor("[текст](url)"), title: "Ссылка (Ctrl/Cmd + K)", content: <FontAwesomeIcon icon={faLink} /> },
-                      { onClick: () => insertAtCursor("`", "`"), title: "Код (Ctrl/Cmd + Shift + C)", content: <>&lt;/&gt;</> },
-                      { onClick: () => insertAtCursor("> "), title: "Цитата (Ctrl/Cmd + Shift + Q)", content: "❝" },
-                      { onClick: () => insertAtCursor("| | |\n| --- | --- |\n| | |"), title: "Таблица (Ctrl/Cmd + Shift + T)", content: "⊞" },
-                      { onClick: () => insertAtCursor("- [ ] "), title: "Чекбокс (Ctrl/Cmd + Shift + B)", content: "☐" }
-                    ].map((button, index) => (
-                      <motion.button
-                        key={index}
-                        onClick={button.onClick}
-                        title={button.title}
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.95 }}
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.05 }}
-                      >
-                        {button.content}
-                      </motion.button>
-                    ))}
-                  </div>
-                  <div className="quick-insert-right">
-                    <motion.button 
-                      onClick={() => setIsPreview(!isPreview)} 
-                      className="toolbar-button"
-                      title={isPreview ? "Редактировать" : "Предпросмотр"}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      <FontAwesomeIcon icon={isPreview ? faEdit : faEye} />
-                    </motion.button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-            
-            <AnimatePresence mode="wait">
-              {isPreview ? (
-                <motion.div
-                  key="preview"
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <div className="quick-insert-bar">
-                    <div className="spacer"></div>
-                    <motion.button 
-                      onClick={() => setIsPreview(!isPreview)} 
-                      className="toolbar-button"
-                      title="Редактировать"
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      <FontAwesomeIcon icon={faEdit} />
-                    </motion.button>
-                  </div>
-                  <div 
-                    className="preview markdown-body"
-                    dangerouslySetInnerHTML={renderMarkdown()}
-                  />
-                </motion.div>
-              ) : (
-                <motion.textarea
-                  key="editor"
-                  ref={textareaRef}
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  className="editor"
-                  placeholder="Введите Markdown текст здесь..."
-                  onKeyDown={handleEditorKeyDown}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ duration: 0.3 }}
-                />
-              )}
-            </AnimatePresence>
-          </motion.div>
-        </motion.div>
-      </AnimatePresence>
-    </motion.main>
+                  <FontAwesomeIcon icon={faEdit} />
+                </button>
+              </div>
+              <div 
+                className="preview markdown-body"
+                dangerouslySetInnerHTML={renderMarkdown()}
+              />
+            </div>
+          ) : (
+            <textarea
+              ref={textareaRef}
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              className="editor"
+              placeholder="Введите Markdown текст здесь..."
+              onKeyDown={handleEditorKeyDown}
+            />
+          )}
+        </div>
+      </div>
+    </main>
   );
 }
 

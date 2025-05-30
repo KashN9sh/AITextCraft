@@ -21,7 +21,7 @@ body {
   overflow-x: hidden;
 }
 
-/* Переменные для цветов и анимаций */
+/* Переменные для цветов */
 :root {
   --primary-color: #ffd7a8; /* Очень светлый пастельный оранжевый */
   --primary-light: #fff0dd; /* Почти белый с оранжевым оттенком */
@@ -55,12 +55,6 @@ body {
   -moz-osx-font-smoothing: grayscale;
   -webkit-text-size-adjust: 100%;
 
-  /* Переменные для анимаций */
-  --transition-fast: 0.2s;
-  --transition-normal: 0.3s;
-  --transition-slow: 0.5s;
-  --ease-out: cubic-bezier(0.4, 0, 0.2, 1);
-  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
   --glass-bg: rgba(255, 255, 255, 0.7);
   --glass-border: rgba(255, 255, 255, 0.2);
   --glass-shadow: rgba(0, 0, 0, 0.1);
@@ -128,7 +122,6 @@ body {
   font-size: 1rem;
   color: var(--text-color);
   background-color: #ffffff;
-  transition: all 0.2s ease-in-out;
 }
 
 .filename-input:focus {
@@ -144,7 +137,6 @@ body {
   border: 1px solid var(--border-color);
   border-radius: 10px;
   cursor: pointer;
-  transition: all 0.2s ease-in-out;
   font-weight: 500;
   font-size: 1em;
 }
@@ -152,11 +144,6 @@ body {
 .toolbar-button:hover {
   background-color: var(--primary-dark);
   color: white;
-  transform: translateY(-1px);
-}
-
-.toolbar-button:active {
-  transform: translateY(1px);
 }
 
 .editor {
@@ -170,7 +157,6 @@ body {
   resize: none;
   color: var(--text-color);
   background-color: #ffffff;
-  transition: all 0.2s ease-in-out;
 }
 
 .editor:focus {
@@ -359,7 +345,7 @@ body {
   border-radius: 8px;
   cursor: pointer;
   font-size: 1em;
-  transition: all var(--transition-fast) var(--ease-out);
+  transition: all 0.2s ease-out;
   color: var(--text-color);
   padding: 0.3rem 0.6rem;
   min-width: 36px;
@@ -412,7 +398,7 @@ body {
   border: 1px solid var(--border-color);
   border-radius: 10px;
   cursor: pointer;
-  transition: all 0.2s ease-in-out;
+  transition: all 0.2s ease-out;
   font-weight: 500;
   font-size: 0.95rem;
 }
@@ -443,7 +429,7 @@ a {
   font-weight: 500;
   color: var(--primary-dark);
   text-decoration: inherit;
-  transition: color 0.2s ease-in-out;
+  transition: color 0.2s ease-out;
 }
 
 a:hover {
@@ -466,7 +452,7 @@ button {
   font-family: inherit;
   color: var(--text-color);
   background-color: #ffffff;
-  transition: all 0.2s ease-in-out;
+  transition: all 0.2s ease-out;
   box-shadow: 0 2px 4px var(--shadow-color);
 }
 
@@ -675,7 +661,6 @@ button:focus {
   gap: 0.6rem;
   border-radius: 8px;
   margin-bottom: 2px;
-  transition: background-color 0.18s, box-shadow 0.18s;
   width: 100%;
 }
 
@@ -1102,7 +1087,6 @@ button:focus {
   padding: 1.2rem 2rem;
   font-size: 1.2rem;
   cursor: pointer;
-  transition: all 0.2s;
   box-shadow: 0 4px 12px var(--shadow-color);
   display: inline-flex;
   align-items: center;
@@ -1111,7 +1095,6 @@ button:focus {
 
 .select-dir-button:hover {
   background-color: var(--primary-dark);
-  transform: translateY(-2px);
   box-shadow: 0 6px 16px var(--shadow-color);
 }
 
@@ -1144,7 +1127,6 @@ button:focus {
   background-color: var(--primary-light);
   border-radius: 12px;
   cursor: pointer;
-  transition: all 0.2s;
   display: flex;
   align-items: center;
   border: 1px solid var(--border-color);
@@ -1152,7 +1134,6 @@ button:focus {
 
 .directory-item:hover {
   background-color: var(--primary-color);
-  transform: translateY(-2px);
   box-shadow: 0 4px 8px var(--shadow-color);
 }
 
@@ -1253,7 +1234,6 @@ button:focus {
   font-size: 14px;
   outline: none;
   background-color: #fff;
-  animation: highlight 0.3s ease-in-out;
 }
 
 .rename-file-input:focus {
@@ -1263,13 +1243,6 @@ button:focus {
 
 .renaming {
   background-color: var(--primary-light) !important;
-}
-
-/* Анимация для выделения файла при переименовании */
-@keyframes highlight {
-  0% { background-color: #fff; }
-  50% { background-color: var(--primary-color); }
-  100% { background-color: var(--primary-light); }
 }
 
 /* Стили для drag and drop */

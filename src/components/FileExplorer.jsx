@@ -322,62 +322,40 @@ function FileExplorer({ onFileSelect, directoryPath, currentFile }) {
       <Draggable key={item.path} id={item.path} item={item}>
         <Droppable id={item.path} item={item}>
           <div style={{ marginLeft: `${level * 20}px` }}>
-            <motion.div
-              layoutId={item.path}
+            <div
               className={`file-item ${item.is_dir ? 'directory' : 'file'} 
                        ${currentFile?.path === item.path ? 'selected' : ''}`}
               onClick={() => handleItemClick(item)}
               onContextMenu={(e) => handleContextMenu(e, item)}
-              whileHover={{ scale: 1.02, x: 5 }}
-              whileTap={{ scale: 0.98 }}
             >
               <div className="file-item-content">
                 <span className="file-icon">
                   <FontAwesomeIcon icon={item.is_dir ? (expandedDirs.has(item.path) ? faFolderOpen : faFolder) : faFile} />
                 </span>
-                <AnimatePresence mode="wait">
-                  {isRenamingFile && renameItem?.path === item.path ? (
-                    <motion.input
-                      key="rename-input"
-                      ref={renameInputRef}
-                      type="text"
-                      value={newFileName}
-                      onChange={(e) => setNewFileName(e.target.value)}
-                      onKeyDown={handleRenameSubmit}
-                      onBlur={() => {
-                        setIsRenamingFile(false);
-                        setRenameItem(null);
-                      }}
-                      className="rename-file-input"
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.8 }}
-                      transition={{ duration: 0.2 }}
-                    />
-                  ) : (
-                    <motion.span 
-                      key="file-name"
-                      className="file-name"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      {item.name}
-                    </motion.span>
-                  )}
-                </AnimatePresence>
+                {isRenamingFile && renameItem?.path === item.path ? (
+                  <input
+                    ref={renameInputRef}
+                    type="text"
+                    value={newFileName}
+                    onChange={(e) => setNewFileName(e.target.value)}
+                    onKeyDown={handleRenameSubmit}
+                    onBlur={() => {
+                      setIsRenamingFile(false);
+                      setRenameItem(null);
+                    }}
+                    className="rename-file-input"
+                  />
+                ) : (
+                  <span className="file-name">
+                    {item.name}
+                  </span>
+                )}
               </div>
-            </motion.div>
+            </div>
             {item.is_dir && expandedDirs.has(item.path) && subDirs[item.path] && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.2 }}
-              >
+              <div>
                 {renderFileTree(subDirs[item.path], level + 1)}
-              </motion.div>
+              </div>
             )}
           </div>
         </Droppable>
@@ -434,15 +412,14 @@ function FileExplorer({ onFileSelect, directoryPath, currentFile }) {
     if (!activeDragItem) return null;
 
     return (
-      <motion.div 
-        layoutId={activeDragItem.path}
+      <div 
         className={`file-item ${activeDragItem.is_dir ? 'directory' : 'file'} dragging`}
       >
         <span className="file-icon">
           <FontAwesomeIcon icon={activeDragItem.is_dir ? faFolder : faFile} />
         </span>
         <span className="file-name">{activeDragItem.name}</span>
-      </motion.div>
+      </div>
     );
   };
 
@@ -455,57 +432,34 @@ function FileExplorer({ onFileSelect, directoryPath, currentFile }) {
       onDragOver={handleDragOver}
       modifiers={[restrictToVerticalAxis, restrictToWindowEdges]}
     >
-      <motion.div 
-        className="file-explorer"
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.3 }}
-      >
+      <div className="file-explorer">
         {loading ? (
-          <motion.div 
-            className="loading"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
+          <div className="loading">
             Загрузка...
-          </motion.div>
+          </div>
         ) : (
           <ul className="file-list">
-            <AnimatePresence>
-              {isCreatingFile && (
-                <motion.li 
-                  className="file-item new-file"
-                  initial={{ opacity: 0, y: -20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <span className="file-icon">
-                    <FontAwesomeIcon icon={faFile} />
-                  </span>
-                  <input
-                    ref={newFileInputRef}
-                    type="text"
-                    value={newFileName}
-                    onChange={(e) => setNewFileName(e.target.value)}
-                    onKeyDown={handleNewFileNameSubmit}
-                    onBlur={() => setIsCreatingFile(false)}
-                    placeholder="Введите имя файла..."
-                    className="new-file-input"
-                  />
-                </motion.li>
-              )}
-            </AnimatePresence>
+            {isCreatingFile && (
+              <li className="file-item new-file">
+                <span className="file-icon">
+                  <FontAwesomeIcon icon={faFile} />
+                </span>
+                <input
+                  ref={newFileInputRef}
+                  type="text"
+                  value={newFileName}
+                  onChange={(e) => setNewFileName(e.target.value)}
+                  onKeyDown={handleNewFileNameSubmit}
+                  onBlur={() => setIsCreatingFile(false)}
+                  placeholder="Введите имя файла..."
+                  className="new-file-input"
+                />
+              </li>
+            )}
             {files.length === 0 ? (
-              <motion.li 
-                className="empty-directory"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.2 }}
-              >
+              <li className="empty-directory">
                 Нет файлов
-              </motion.li>
+              </li>
             ) : (
               renderFileTree(files)
             )}
@@ -558,7 +512,7 @@ function FileExplorer({ onFileSelect, directoryPath, currentFile }) {
         <DragOverlay modifiers={[restrictToWindowEdges]}>
           {activeDragItem && renderDragOverlay()}
         </DragOverlay>
-      </motion.div>
+      </div>
     </DndContext>
   );
 }
