@@ -13,6 +13,7 @@ import {
 } from '@dnd-kit/core';
 import { restrictToVerticalAxis, restrictToWindowEdges } from '@dnd-kit/modifiers';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
+import { createPortal } from 'react-dom';
 
 function FileExplorer({ onFileSelect, directoryPath, currentFile }) {
   const [files, setFiles] = useState([]);
@@ -465,53 +466,34 @@ function FileExplorer({ onFileSelect, directoryPath, currentFile }) {
           </ul>
         )}
 
-        {/* Глобальное контекстное меню для пустой области */}
-        {contextMenu.show && !contextMenu.item && (
-          <div
-            ref={contextMenuRef}
-            className="context-menu"
-            style={{
-              position: "fixed",
-              top: contextMenu.y,
-              left: contextMenu.x,
-            }}
-          >
-            <div className="context-menu-item" onClick={handleCreateNewFile}>
-              <span>Создать новый файл</span>
-            </div>
-          </div>
-        )}
-
-        {/* Контекстное меню для файла или директории */}
-        {contextMenu.show && contextMenu.item && (
-          <div
-            ref={contextMenuRef}
-            className="context-menu"
-            style={{
-              position: "fixed",
-              top: contextMenu.y,
-              left: contextMenu.x,
-            }}
-          >
-            <div className="context-menu-item" onClick={handleRenameFile}>
-              <span>Переименовать</span>
-            </div>
-            <div className="context-menu-item" onClick={handleDeleteFile}>
-              <span>Удалить</span>
-            </div>
-            <div className="context-menu-item" onClick={handleCopyFile}>
-              <span>Копировать</span>
-            </div>
-            <div className="context-menu-item" onClick={handleCreateNewFile}>
-              <span>Создать новый файл</span>
-            </div>
-          </div>
-        )}
-
         <DragOverlay modifiers={[restrictToWindowEdges]}>
           {activeDragItem && renderDragOverlay()}
         </DragOverlay>
       </div>
+
+      {/* Контекстное меню через Portal */}
+      {contextMenu.show && createPortal(
+        <div
+          ref={contextMenuRef}
+          className="context-menu"
+          style={{
+            top: contextMenu.y,
+            left: contextMenu.x,
+          }}
+        >
+          {contextMenu.item ? (
+            <>
+              <div className="context-menu-item" onClick={handleRenameFile}>Переименовать</div>
+              <div className="context-menu-item" onClick={handleDeleteFile}>Удалить</div>
+              <div className="context-menu-item" onClick={handleCopyFile}>Копировать</div>
+              <div className="context-menu-item" onClick={handleCreateNewFile}>Создать новый файл</div>
+            </>
+          ) : (
+            <div className="context-menu-item" onClick={handleCreateNewFile}>Создать новый файл</div>
+          )}
+        </div>,
+        document.body
+      )}
     </DndContext>
   );
 }
