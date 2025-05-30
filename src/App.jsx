@@ -9,6 +9,7 @@ import { faLink, faSave, faFolderOpen, faEye, faEdit, faHome } from '@fortawesom
 import FileExplorer from "./components/FileExplorer";
 import WelcomeScreen from "./components/WelcomeScreen";
 import { listen } from '@tauri-apps/api/event';
+import { useSpring, animated } from 'react-spring';
 
 // Настраиваем marked для использования highlight.js и поддержки чекбоксов
 marked.setOptions({
@@ -442,13 +443,47 @@ function App() {
     }
   };
 
+  // Анимация для контейнера редактора
+  const editorAnimation = useSpring({
+    from: { 
+      opacity: 0,
+      transform: 'translateY(100%)'
+    },
+    to: { 
+      opacity: showWelcome ? 0 : 1,
+      transform: showWelcome ? 'translateY(100%)' : 'translateY(0%)'
+    },
+    config: {
+      tension: 400,
+      friction: 30,
+      mass: 1
+    }
+  });
+
+  // Анимация для приветственного экрана
+  const welcomeAnimation = useSpring({
+    from: { 
+      opacity: 1,
+      transform: 'translateY(0%)'
+    },
+    to: { 
+      opacity: showWelcome ? 1 : 0,
+      transform: showWelcome ? 'translateY(0%)' : 'translateY(-100%)'
+    },
+    config: {
+      tension: 400,
+      friction: 30,
+      mass: 1
+    }
+  });
+
   // Если активен приветственный экран
   if (showWelcome) {
     return (
       <main className="app-container">
-        <div className="welcome-container">
+        <animated.div className="welcome-container" style={welcomeAnimation}>
           <WelcomeScreen onSelectDirectory={handleDirectorySelect} />
-        </div>
+        </animated.div>
       </main>
     );
   }
@@ -456,7 +491,7 @@ function App() {
   // Если выбрана директория, показываем редактор и проводник
   return (
     <main className="app-container">
-      <div className="main-content">
+      <animated.div className="main-content" style={editorAnimation}>
         {/* Файловый проводник */}
         {isExplorerOpen && (
           <div className="file-explorer-container">
@@ -550,7 +585,7 @@ function App() {
             />
           )}
         </div>
-      </div>
+      </animated.div>
     </main>
   );
 }
