@@ -144,7 +144,7 @@ async fn save_directory_history(directories: Vec<DirectoryHistory>) -> Result<()
     let config_dir = dirs::config_dir()
         .ok_or_else(|| "Не удалось получить директорию конфигурации".to_string())?;
     
-    let app_config_dir = config_dir.join("aitextcraft");
+    let app_config_dir = config_dir.join("fancytexty");
     fs::create_dir_all(&app_config_dir)
         .map_err(|e| e.to_string())?;
     
@@ -163,7 +163,7 @@ async fn load_directory_history() -> Result<Vec<DirectoryHistory>, String> {
     let config_dir = dirs::config_dir()
         .ok_or_else(|| "Не удалось получить директорию конфигурации".to_string())?;
     
-    let app_config_dir = config_dir.join("aitextcraft");
+    let app_config_dir = config_dir.join("fancytexty");
     let history_path = app_config_dir.join("directory_history.json");
     
     // Проверяем, существует ли файл истории
