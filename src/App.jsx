@@ -6,7 +6,6 @@ import "highlight.js/styles/github.css";
 import "./App.css";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faLink, faSave, faFolderOpen, faEye, faEdit, faHome } from '@fortawesome/free-solid-svg-icons';
-import { motion, AnimatePresence } from 'framer-motion';
 import FileExplorer from "./components/FileExplorer";
 import WelcomeScreen from "./components/WelcomeScreen";
 import { listen } from '@tauri-apps/api/event';
