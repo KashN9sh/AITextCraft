@@ -17,9 +17,9 @@ function incrementVersion(version) {
 // Функция для обновления версии в package.json
 function updatePackageVersion() {
     const packagePath = path.join(__dirname, '..', 'package.json');
-    const package = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
-    package.version = incrementVersion(package.version);
-    fs.writeFileSync(packagePath, JSON.stringify(package, null, 2));
+    const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
+    packageJson.version = incrementVersion(packageJson.version);
+    fs.writeFileSync(packagePath, JSON.stringify(packageJson, null, 2));
 }
 
 // Функция для обновления версии в tauri.conf.json
