@@ -251,24 +251,6 @@ fn copy_dir_all(src: &std::path::Path, dst: &std::path::Path) -> std::io::Result
     Ok(())
 }
 
-#[tauri::command]
-async fn move_file(source_path: String, destination_path: String) -> Result<(), String> {
-    let source = std::path::Path::new(&source_path);
-    let destination = std::path::Path::new(&destination_path);
-    
-    // Проверяем, существует ли директория назначения
-    if let Some(parent) = destination.parent() {
-        if !parent.exists() {
-            fs::create_dir_all(parent)
-                .map_err(|e| e.to_string())?;
-        }
-    }
-    
-    // Перемещаем файл или директорию
-    fs::rename(source, destination)
-        .map_err(|e| e.to_string())
-}
-
 fn main() {
     tauri::Builder::default()
         .setup(|app| {
@@ -340,8 +322,7 @@ fn main() {
             create_file,
             rename_file,
             delete_file,
-            copy_file,
-            move_file
+            copy_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

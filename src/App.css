@@ -763,23 +763,6 @@ button:focus {
   background-color: var(--primary-light) !important;
 }
 
-/* Стили для drag and drop */
-.dragging {
-  cursor: grabbing;
-  opacity: 0.8;
-  background-color: var(--primary-light);
-  box-shadow: 0 4px 8px var(--shadow-color);
-  z-index: 100;
-  pointer-events: none;
-  position: relative;
-}
-
-.draggable-item {
-  cursor: grab;
-  user-select: none;
-  position: relative;
-}
-
 /* Стили для гласноморфизма */
 .glass-effect {
   background: var(--glass-bg);
