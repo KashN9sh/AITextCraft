@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faFolder, faFolderOpen, faFile, faPlus, faPen, faTrash, faCopy, faArrowRight, faChevronRight, faChevronDown } from '@fortawesome/free-solid-svg-icons';
+import { faFolder, faFolderOpen, faFileAlt, faPlus, faPen, faTrash, faCopy, faArrowRight, faChevronRight, faChevronDown } from '@fortawesome/free-solid-svg-icons';
 import { createPortal } from 'react-dom';
 
 function FileExplorer({ onFileSelect, directoryPath, currentFile }) {
@@ -22,7 +22,11 @@ function FileExplorer({ onFileSelect, directoryPath, currentFile }) {
     try {
       setLoading(true);
       const contents = await invoke("get_directory_contents", { path });
-      setFiles(contents);
+      // Фильтруем содержимое: оставляем только папки и .md файлы
+      const filteredContents = contents.filter(item => 
+        item.is_dir || item.name.toLowerCase().endsWith('.md')
+      );
+      setFiles(filteredContents);
     } catch (error) {
       console.error("Ошибка при загрузке списка файлов:", error);
     } finally {
@@ -33,9 +37,13 @@ function FileExplorer({ onFileSelect, directoryPath, currentFile }) {
   const loadSubDirectory = async (path) => {
     try {
       const contents = await invoke("get_directory_contents", { path });
+      // Фильтруем содержимое поддиректории
+      const filteredContents = contents.filter(item => 
+        item.is_dir || item.name.toLowerCase().endsWith('.md')
+      );
       setSubDirs(prev => ({
         ...prev,
-        [path]: contents
+        [path]: filteredContents
       }));
     } catch (error) {
       console.error("Ошибка при загрузке содержимого поддиректории:", error);
@@ -219,7 +227,13 @@ function FileExplorer({ onFileSelect, directoryPath, currentFile }) {
         >
           <div className="file-item-content">
             <span className="file-icon">
-              <FontAwesomeIcon icon={item.is_dir ? (expandedDirs.has(item.path) ? faFolderOpen : faFolder) : faFile} />
+              <FontAwesomeIcon 
+                icon={
+                  item.is_dir 
+                    ? (expandedDirs.has(item.path) ? faFolderOpen : faFolder)
+                    : faFileAlt
+                } 
+              />
             </span>
             {isRenamingFile && renameItem?.path === item.path ? (
               <input
@@ -252,16 +266,6 @@ function FileExplorer({ onFileSelect, directoryPath, currentFile }) {
 
   return (
     <div className="file-explorer">
-      <div className="file-explorer-header">
-        <h3>Файлы</h3>
-        <button
-          className="toolbar-button"
-          onClick={handleCreateNewFile}
-          title="Создать новый файл"
-        >
-          <FontAwesomeIcon icon={faPlus} />
-        </button>
-      </div>
       <div className="file-list">
         {loading ? (
           <div className="loading">Загрузка...</div>

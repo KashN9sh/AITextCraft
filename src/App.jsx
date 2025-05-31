@@ -5,7 +5,7 @@ import hljs from "highlight.js";
 import "highlight.js/styles/github.css";
 import "./App.css";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faLink, faSave, faFolderOpen, faEye, faEdit, faHome } from '@fortawesome/free-solid-svg-icons';
+import { faLink, faSave, faFolderOpen, faEye, faEdit, faHome, faPlus, faTimes } from '@fortawesome/free-solid-svg-icons';
 import FileExplorer from "./components/FileExplorer";
 import WelcomeScreen from "./components/WelcomeScreen";
 import { listen } from '@tauri-apps/api/event';
@@ -45,6 +45,8 @@ function App() {
   const [isExplorerOpen, setIsExplorerOpen] = useState(true);
   const [currentDirectory, setCurrentDirectory] = useState(null);
   const [showWelcome, setShowWelcome] = useState(true);
+  const [pages, setPages] = useState([{ id: 1, title: "Страница 1", content: "" }]);
+  const [currentPageId, setCurrentPageId] = useState(1);
   const textareaRef = useRef(null);
   const [clipboard, setClipboard] = useState("");
 
@@ -56,12 +58,28 @@ function App() {
 
   const handleSave = useCallback(async () => {
     try {
-      await invoke("save_file", { content, fileName });
+      // Обновляем содержимое текущей страницы
+      const updatedPages = pages.map(page => 
+        page.id === currentPageId 
+          ? { ...page, content } 
+          : page
+      );
+      setPages(updatedPages);
+
+      // Сохраняем весь документ как JSON
+      const documentData = {
+        pages: updatedPages
+      };
+      
+      await invoke("save_file", { 
+        content: JSON.stringify(documentData, null, 2), 
+        fileName 
+      });
       alert("Файл успешно сохранен!");
     } catch (error) {
       alert("Ошибка при сохранении файла: " + error);
     }
-  }, [content, fileName]);
+  }, [content, fileName, pages, currentPageId]);
 
   // Добавляем обработчики событий меню
   useEffect(() => {
@@ -98,13 +116,29 @@ function App() {
   };
 
   const handleFileSelect = async (fileItem) => {
-    // Сохраняем полный путь к файлу и имя файла
     setFileName(fileItem.path);
     
     try {
-      // Загружаем содержимое файла
       const loadedContent = await invoke("load_file", { fileName: fileItem.path });
-      setContent(loadedContent);
+      // Парсим JSON из содержимого файла
+      try {
+        const documentData = JSON.parse(loadedContent);
+        if (documentData.pages && Array.isArray(documentData.pages)) {
+          setPages(documentData.pages);
+          setCurrentPageId(documentData.pages[0]?.id || 1);
+          setContent(documentData.pages[0]?.content || "");
+        } else {
+          // Если это старый формат (просто markdown), конвертируем в новый
+          setPages([{ id: 1, title: "Страница 1", content: loadedContent }]);
+          setCurrentPageId(1);
+          setContent(loadedContent);
+        }
+      } catch (e) {
+        // Если не удалось распарсить JSON, считаем что это старый формат
+        setPages([{ id: 1, title: "Страница 1", content: loadedContent }]);
+        setCurrentPageId(1);
+        setContent(loadedContent);
+      }
     } catch (error) {
       console.error("Ошибка при загрузке файла:", error);
       alert("Ошибка при загрузке файла: " + error);
@@ -497,6 +531,51 @@ function App() {
     }
   });
 
+  const handleAddPage = () => {
+    const newPageId = Math.max(...pages.map(p => p.id), 0) + 1;
+    const newPage = {
+      id: newPageId,
+      title: `Страница ${newPageId}`,
+      content: ""
+    };
+    setPages([...pages, newPage]);
+    setCurrentPageId(newPageId);
+    setContent("");
+  };
+
+  const handleRemovePage = (pageId) => {
+    if (pages.length <= 1) {
+      alert("Нельзя удалить последнюю страницу!");
+      return;
+    }
+    
+    const newPages = pages.filter(p => p.id !== pageId);
+    setPages(newPages);
+    
+    // Если удаляем текущую страницу, переключаемся на предыдущую
+    if (pageId === currentPageId) {
+      const currentIndex = pages.findIndex(p => p.id === pageId);
+      const newCurrentPage = newPages[Math.max(0, currentIndex - 1)];
+      setCurrentPageId(newCurrentPage.id);
+      setContent(newCurrentPage.content);
+    }
+  };
+
+  const handlePageChange = (pageId) => {
+    // Сохраняем содержимое текущей страницы
+    const updatedPages = pages.map(page => 
+      page.id === currentPageId 
+        ? { ...page, content } 
+        : page
+    );
+    setPages(updatedPages);
+
+    // Переключаемся на новую страницу
+    const newPage = updatedPages.find(p => p.id === pageId);
+    setCurrentPageId(pageId);
+    setContent(newPage.content);
+  };
+
   // Если активен приветственный экран
   if (showWelcome) {
     return (
@@ -514,96 +593,130 @@ function App() {
       <animated.div className="main-content" style={editorAnimation}>
         {/* Файловый проводник */}
         <animated.div className="file-explorer-container" style={explorerAnimation}>
-          <div className="file-explorer">
             <FileExplorer 
               onFileSelect={handleFileSelect} 
               directoryPath={currentDirectory?.path}
               currentFile={{ path: fileName }}
             />
-          </div>
         </animated.div>
         
-        {/* Редактор */}
-        <div className="editor-container">
-          {/* Панель быстрых вставок */}
-          {!isPreview && (
-            <div className="quick-insert-bar">
-              <div className="quick-insert-left">
-                <button
-                  onClick={handleHomeClick}
-                  className="toolbar-button"
-                  title="На главный экран"
-                >
-                  <FontAwesomeIcon icon={faHome} />
-                </button>
-                <button
-                  onClick={() => setIsExplorerOpen(!isExplorerOpen)}
-                  className="toolbar-button"
-                  title={isExplorerOpen ? "Скрыть проводник" : "Показать проводник"}
-                >
-                  <FontAwesomeIcon icon={faFolderOpen} />
-                </button>
-              </div>
-              <div className="quick-insert-center">
-                {[
-                  { onClick: () => insertAtCursor("**", "**"), title: "Жирный (Ctrl/Cmd + B)", content: <b>B</b> },
-                  { onClick: () => insertAtCursor("*", "*"), title: "Курсив (Ctrl/Cmd + I)", content: <i>I</i> },
-                  { onClick: () => insertAtCursor("# "), title: "Заголовок (Ctrl/Cmd + Shift + H)", content: "H1" },
-                  { onClick: () => insertAtCursor("- "), title: "Список (Ctrl/Cmd + Shift + L)", content: "•" },
-                  { onClick: () => insertAtCursor("[текст](url)"), title: "Ссылка (Ctrl/Cmd + K)", content: <FontAwesomeIcon icon={faLink} /> },
-                  { onClick: () => insertAtCursor("`", "`"), title: "Код (Ctrl/Cmd + Shift + C)", content: <>&lt;/&gt;</> },
-                  { onClick: () => insertAtCursor("> "), title: "Цитата (Ctrl/Cmd + Shift + Q)", content: "❝" },
-                  { onClick: () => insertAtCursor("| | |\n| --- | --- |\n| | |"), title: "Таблица (Ctrl/Cmd + Shift + T)", content: "⊞" },
-                  { onClick: () => insertAtCursor("- [ ] "), title: "Чекбокс (Ctrl/Cmd + Shift + B)", content: "☐" }
-                ].map((button, index) => (
-                  <button
-                    key={index}
-                    onClick={button.onClick}
-                    title={button.title}
-                  >
-                    {button.content}
-                  </button>
-                ))}
-              </div>
-              <div className="quick-insert-right">
-                <button 
-                  onClick={() => setIsPreview(!isPreview)} 
-                  className="toolbar-button"
-                  title={isPreview ? "Редактировать" : "Предпросмотр"}
-                >
-                  <FontAwesomeIcon icon={isPreview ? faEdit : faEye} />
-                </button>
-              </div>
-            </div>
-          )}
-          
-          {isPreview ? (
-            <div>
+        {/* Контейнер редактора и вкладок */}
+        <div className="editor-with-tabs">
+          <div className="editor-container">
+            {/* Панель быстрых вставок */}
+            {!isPreview && (
               <div className="quick-insert-bar">
-                <div className="spacer"></div>
-                <button 
-                  onClick={() => setIsPreview(!isPreview)} 
-                  className="toolbar-button"
-                  title="Редактировать"
-                >
-                  <FontAwesomeIcon icon={faEdit} />
-                </button>
+                <div className="quick-insert-left">
+                  <button
+                    onClick={handleHomeClick}
+                    className="toolbar-button"
+                    title="На главный экран"
+                  >
+                    <FontAwesomeIcon icon={faHome} />
+                  </button>
+                  <button
+                    onClick={() => setIsExplorerOpen(!isExplorerOpen)}
+                    className="toolbar-button"
+                    title={isExplorerOpen ? "Скрыть проводник" : "Показать проводник"}
+                  >
+                    <FontAwesomeIcon icon={faFolderOpen} />
+                  </button>
+                </div>
+                <div className="quick-insert-center">
+                  {[
+                    { onClick: () => insertAtCursor("**", "**"), title: "Жирный (Ctrl/Cmd + B)", content: <b>B</b> },
+                    { onClick: () => insertAtCursor("*", "*"), title: "Курсив (Ctrl/Cmd + I)", content: <i>I</i> },
+                    { onClick: () => insertAtCursor("# "), title: "Заголовок (Ctrl/Cmd + Shift + H)", content: "H1" },
+                    { onClick: () => insertAtCursor("- "), title: "Список (Ctrl/Cmd + Shift + L)", content: "•" },
+                    { onClick: () => insertAtCursor("[текст](url)"), title: "Ссылка (Ctrl/Cmd + K)", content: <FontAwesomeIcon icon={faLink} /> },
+                    { onClick: () => insertAtCursor("`", "`"), title: "Код (Ctrl/Cmd + Shift + C)", content: <>&lt;/&gt;</> },
+                    { onClick: () => insertAtCursor("> "), title: "Цитата (Ctrl/Cmd + Shift + Q)", content: "❝" },
+                    { onClick: () => insertAtCursor("| | |\n| --- | --- |\n| | |"), title: "Таблица (Ctrl/Cmd + Shift + T)", content: "⊞" },
+                    { onClick: () => insertAtCursor("- [ ] "), title: "Чекбокс (Ctrl/Cmd + Shift + B)", content: "☐" }
+                  ].map((button, index) => (
+                    <button
+                      key={index}
+                      onClick={button.onClick}
+                      title={button.title}
+                    >
+                      {button.content}
+                    </button>
+                  ))}
+                </div>
+                <div className="quick-insert-right">
+                  <button 
+                    onClick={() => setIsPreview(!isPreview)} 
+                    className="toolbar-button"
+                    title={isPreview ? "Редактировать" : "Предпросмотр"}
+                  >
+                    <FontAwesomeIcon icon={isPreview ? faEdit : faEye} />
+                  </button>
+                </div>
               </div>
-              <div 
-                className="preview markdown-body"
-                dangerouslySetInnerHTML={renderMarkdown()}
+            )}
+            
+            {isPreview ? (
+              <div>
+                <div className="quick-insert-bar">
+                  <div className="spacer"></div>
+                  <button 
+                    onClick={() => setIsPreview(!isPreview)} 
+                    className="toolbar-button"
+                    title="Редактировать"
+                  >
+                    <FontAwesomeIcon icon={faEdit} />
+                  </button>
+                </div>
+                <div 
+                  className="preview markdown-body"
+                  dangerouslySetInnerHTML={renderMarkdown()}
+                />
+              </div>
+            ) : (
+              <textarea
+                ref={textareaRef}
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                className="editor"
+                placeholder="Введите Markdown текст здесь..."
+                onKeyDown={handleEditorKeyDown}
               />
+            )}
+          </div>
+          {/* Вкладки страниц справа, под редактором */}
+          <div className="page-tabs-under-editor">
+            <div className="page-tabs">
+              {pages.map(page => (
+                <div 
+                  key={page.id}
+                  className={`page-tab ${page.id === currentPageId ? 'active' : ''}`}
+                  onClick={() => handlePageChange(page.id)}
+                  title={page.title}
+                >
+                  <span>{page.title}</span>
+                  {pages.length > 1 && (
+                    <button
+                      className="close-tab"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemovePage(page.id);
+                      }}
+                      title="Закрыть страницу"
+                    >
+                      <FontAwesomeIcon icon={faTimes} />
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button 
+                className="add-page-button" 
+                onClick={handleAddPage}
+                title="Добавить страницу"
+              >
+                <FontAwesomeIcon icon={faPlus} />
+              </button>
             </div>
-          ) : (
-            <textarea
-              ref={textareaRef}
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              className="editor"
-              placeholder="Введите Markdown текст здесь..."
-              onKeyDown={handleEditorKeyDown}
-            />
-          )}
+          </div>
         </div>
       </animated.div>
     </main>
