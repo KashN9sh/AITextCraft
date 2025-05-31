@@ -53,6 +53,10 @@ function App() {
   const [renamingPageId, setRenamingPageId] = useState(null);
   const [renameValue, setRenameValue] = useState("");
   const [renameMenu, setRenameMenu] = useState({ show: false, x: 0, y: 0, pageId: null });
+  const [editingBlockIdx, setEditingBlockIdx] = useState(null);
+  const [editingContent, setEditingContent] = useState("");
+  const editingRef = useRef(null);
+  const [newBlockContent, setNewBlockContent] = useState("");
 
   useEffect(() => {
     if (isPreview) {
@@ -156,8 +160,138 @@ function App() {
     setShowWelcome(true);
   };
 
+  // Разбиваем markdown на блоки (параграфы и блоки кода)
+  const splitMarkdownBlocks = (text) => {
+    const lines = text.split('\n');
+    const blocks = [];
+    let current = [];
+    let inCode = false;
+
+    for (let line of lines) {
+      if (line.startsWith('```')) {
+        inCode = !inCode;
+        current.push(line);
+        if (!inCode) {
+          blocks.push(current.join('\n'));
+          current = [];
+        }
+        continue;
+      }
+      if (inCode) {
+        current.push(line);
+        continue;
+      }
+      if (line.trim() === '') {
+        if (current.length) {
+          blocks.push(current.join('\n'));
+          current = [];
+        }
+      } else {
+        current.push(line);
+      }
+    }
+    if (current.length) blocks.push(current.join('\n'));
+    return blocks;
+  };
+
+  // Клик по блоку для редактирования
+  const handleBlockClick = (idx, block) => {
+    setEditingBlockIdx(idx);
+    setEditingContent(block);
+    setTimeout(() => {
+      if (editingRef.current) {
+        editingRef.current.focus();
+        editingRef.current.setSelectionRange(0, 0);
+      }
+    }, 0);
+  };
+
+  // Изменение текста блока
+  const handleBlockEdit = (e) => {
+    setEditingContent(e.target.value);
+  };
+
+  // Сохранение изменений блока
+  const handleBlockBlur = () => {
+    if (editingBlockIdx === null) return;
+    const blocks = splitMarkdownBlocks(content);
+    blocks[editingBlockIdx] = editingContent;
+    setContent(blocks.join('\n\n'));
+    setEditingBlockIdx(null);
+    setEditingContent("");
+  };
+
+  // Сохранение по Shift+Enter
+  const handleBlockKeyDown = (e) => {
+    if (e.key === 'Enter' && e.shiftKey) {
+      e.preventDefault();
+      handleBlockBlur();
+    }
+  };
+
+  // Добавление нового блока
+  const handleNewBlockChange = (e) => {
+    setNewBlockContent(e.target.value);
+  };
+
+  const handleNewBlockKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (newBlockContent.trim() !== "") {
+        const blocks = splitMarkdownBlocks(content);
+        blocks.push(newBlockContent);
+        setContent(blocks.join('\n\n'));
+        setNewBlockContent("");
+      }
+    }
+  };
+
+  const handleNewBlockBlur = () => {
+    if (newBlockContent.trim() !== "") {
+      const blocks = splitMarkdownBlocks(content);
+      blocks.push(newBlockContent);
+      setContent(blocks.join('\n\n'));
+      setNewBlockContent("");
+    }
+  };
+
+  // Рендерим каждый блок + пустой блок в конце
   const renderMarkdown = () => {
-    return { __html: marked(content) };
+    const blocks = splitMarkdownBlocks(content);
+    return [
+      ...blocks.map((block, idx) =>
+        editingBlockIdx === idx ? (
+          <textarea
+            key={idx}
+            ref={editingRef}
+            value={editingContent}
+            onChange={handleBlockEdit}
+            onBlur={handleBlockBlur}
+            onKeyDown={handleBlockKeyDown}
+            className="editing-block"
+          />
+        ) : (
+          <div
+            key={idx}
+            className="markdown-block"
+            onClick={() => handleBlockClick(idx, block)}
+            style={{ cursor: 'text' }}
+            dangerouslySetInnerHTML={{ __html: marked(block) }}
+          />
+        )
+      ),
+      // Пустой блок для создания нового
+      <textarea
+        key="new-block"
+        className="editing-block"
+        placeholder="Новый блок..."
+        value={newBlockContent}
+        onChange={handleNewBlockChange}
+        onKeyDown={handleNewBlockKeyDown}
+        onBlur={handleNewBlockBlur}
+        style={{ minHeight: '2em', marginTop: 12 }}
+      />
+    ];
   };
 
   // Быстрая вставка Markdown
@@ -672,84 +806,49 @@ function App() {
         <div className="editor-with-tabs">
           <div className="editor-container">
             {/* Панель быстрых вставок */}
-            {!isPreview && (
-              <div className="quick-insert-bar">
-                <div className="quick-insert-left">
-                  <button
-                    onClick={handleHomeClick}
-                    className="toolbar-button"
-                    title="На главный экран"
-                  >
-                    <FontAwesomeIcon icon={faHome} />
-                  </button>
-                  <button
-                    onClick={() => setIsExplorerOpen(!isExplorerOpen)}
-                    className="toolbar-button"
-                    title={isExplorerOpen ? "Скрыть проводник" : "Показать проводник"}
-                  >
-                    <FontAwesomeIcon icon={faFolderOpen} />
-                  </button>
-                </div>
-                <div className="quick-insert-center">
-                  {[
-                    { onClick: () => insertAtCursor("**", "**"), title: "Жирный (Ctrl/Cmd + B)", content: <b>B</b> },
-                    { onClick: () => insertAtCursor("*", "*"), title: "Курсив (Ctrl/Cmd + I)", content: <i>I</i> },
-                    { onClick: () => insertAtCursor("# "), title: "Заголовок (Ctrl/Cmd + Shift + H)", content: "H1" },
-                    { onClick: () => insertAtCursor("- "), title: "Список (Ctrl/Cmd + Shift + L)", content: "•" },
-                    { onClick: () => insertAtCursor("[текст](url)"), title: "Ссылка (Ctrl/Cmd + K)", content: <FontAwesomeIcon icon={faLink} /> },
-                    { onClick: () => insertAtCursor("`", "`"), title: "Код (Ctrl/Cmd + Shift + C)", content: <>&lt;/&gt;</> },
-                    { onClick: () => insertAtCursor("> "), title: "Цитата (Ctrl/Cmd + Shift + Q)", content: "❝" },
-                    { onClick: () => insertAtCursor("| | |\n| --- | --- |\n| | |"), title: "Таблица (Ctrl/Cmd + Shift + T)", content: "⊞" },
-                    { onClick: () => insertAtCursor("- [ ] "), title: "Чекбокс (Ctrl/Cmd + Shift + B)", content: "☐" }
-                  ].map((button, index) => (
-                    <button
-                      key={index}
-                      onClick={button.onClick}
-                      title={button.title}
-                    >
-                      {button.content}
-                    </button>
-                  ))}
-                </div>
-                <div className="quick-insert-right">
-                  <button 
-                    onClick={() => setIsPreview(!isPreview)} 
-                    className="toolbar-button"
-                    title={isPreview ? "Редактировать" : "Предпросмотр"}
-                  >
-                    <FontAwesomeIcon icon={isPreview ? faEdit : faEye} />
-                  </button>
-                </div>
+            <div className="quick-insert-bar">
+              <div className="quick-insert-left">
+                <button
+                  onClick={handleHomeClick}
+                  className="toolbar-button"
+                  title="На главный экран"
+                >
+                  <FontAwesomeIcon icon={faHome} />
+                </button>
+                <button
+                  onClick={() => setIsExplorerOpen(!isExplorerOpen)}
+                  className="toolbar-button"
+                  title={isExplorerOpen ? "Скрыть проводник" : "Показать проводник"}
+                >
+                  <FontAwesomeIcon icon={faFolderOpen} />
+                </button>
               </div>
-            )}
-            
-            {isPreview ? (
-              <div>
-                <div className="quick-insert-bar">
-                  <div className="spacer"></div>
-                  <button 
-                    onClick={() => setIsPreview(!isPreview)} 
-                    className="toolbar-button"
-                    title="Редактировать"
+              <div className="quick-insert-center">
+                {[
+                  { onClick: () => insertAtCursor("**", "**"), title: "Жирный (Ctrl/Cmd + B)", content: <b>B</b> },
+                  { onClick: () => insertAtCursor("*", "*"), title: "Курсив (Ctrl/Cmd + I)", content: <i>I</i> },
+                  { onClick: () => insertAtCursor("# "), title: "Заголовок (Ctrl/Cmd + Shift + H)", content: "H1" },
+                  { onClick: () => insertAtCursor("- "), title: "Список (Ctrl/Cmd + Shift + L)", content: "•" },
+                  { onClick: () => insertAtCursor("[текст](url)"), title: "Ссылка (Ctrl/Cmd + K)", content: <FontAwesomeIcon icon={faLink} /> },
+                  { onClick: () => insertAtCursor("`", "`"), title: "Код (Ctrl/Cmd + Shift + C)", content: <>&lt;/&gt;</> },
+                  { onClick: () => insertAtCursor("> "), title: "Цитата (Ctrl/Cmd + Shift + Q)", content: "❝" },
+                  { onClick: () => insertAtCursor("| | |\n| --- | --- |\n| | |"), title: "Таблица (Ctrl/Cmd + Shift + T)", content: "⊞" },
+                  { onClick: () => insertAtCursor("- [ ] "), title: "Чекбокс (Ctrl/Cmd + Shift + B)", content: "☐" }
+                ].map((button, index) => (
+                  <button
+                    key={index}
+                    onClick={button.onClick}
+                    title={button.title}
                   >
-                    <FontAwesomeIcon icon={faEdit} />
+                    {button.content}
                   </button>
-                </div>
-                <div 
-                  className="preview markdown-body"
-                  dangerouslySetInnerHTML={renderMarkdown()}
-                />
+                ))}
               </div>
-            ) : (
-              <textarea
-                ref={textareaRef}
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                className="editor"
-                placeholder="Введите Markdown текст здесь..."
-                onKeyDown={handleEditorKeyDown}
-              />
-            )}
+            </div>
+            {/* Только интерактивные markdown-блоки */}
+            <div className="preview markdown-body">
+              {renderMarkdown()}
+            </div>
           </div>
           {/* Вкладки страниц справа, под редактором */}
           <div className="page-tabs-under-editor">

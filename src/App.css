@@ -1367,3 +1367,48 @@ button:focus {
   pointer-events: none;
 }
 
+.markdown-block {
+  position: relative;
+  padding: 4px 8px;
+  margin: 4px 0;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.markdown-block:hover {
+  background-color: var(--primary-light);
+}
+
+.markdown-block:hover::before {
+  content: '✎';
+  position: absolute;
+  left: -24px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--primary-dark);
+  opacity: 0.6;
+  font-size: 14px;
+}
+
+.editing-block {
+  width: 100%;
+  min-height: 2em;
+  padding: 8px;
+  margin: 4px 0;
+  border: 1px solid var(--primary-color);
+  border-radius: 4px;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  background: var(--editor-bg);
+  color: var(--text-color);
+  resize: vertical;
+  outline: none;
+  box-shadow: 0 2px 8px var(--shadow-color);
+}
+
+.editing-block:focus {
+  border-color: var(--primary-dark);
+  box-shadow: 0 0 0 2px var(--primary-light);
+}
+
