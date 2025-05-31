@@ -68,6 +68,18 @@ renderer.checkbox = function(checked) {
 };
 marked.use({ renderer });
 
+// Добавляем функцию дебаунсинга
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
 
 function App() {
   const [content, setContent] = useState("");
@@ -133,6 +145,21 @@ function App() {
       alert("Ошибка при сохранении файла: " + error);
     }
   }, [content, fileName, pages, currentPageId]);
+
+  // Создаем дебаунсированную версию handleSave
+  const debouncedSave = useCallback(
+    debounce((customPages) => {
+      handleSave(customPages);
+    }, 1000),
+    [handleSave]
+  );
+
+  // Эффект для автосохранения при изменении контента
+  useEffect(() => {
+    if (content && !showWelcome) {
+      debouncedSave();
+    }
+  }, [content, debouncedSave, showWelcome]);
 
   // Добавляем обработчики событий меню
   useEffect(() => {
