@@ -49,6 +49,7 @@ function App() {
   const [currentPageId, setCurrentPageId] = useState(1);
   const textareaRef = useRef(null);
   const [clipboard, setClipboard] = useState("");
+  const [contextMenu, setContextMenu] = useState({ show: false, x: 0, y: 0, pageId: null });
 
   useEffect(() => {
     if (isPreview) {
@@ -576,6 +577,37 @@ function App() {
     setContent(newPage.content);
   };
 
+  const handleContextMenu = (e, pageId) => {
+    e.preventDefault();
+    const menuWidth = 200; // ширина меню (px)
+    const menuHeight = 44; // высота одного пункта (px)
+    let x = e.clientX;
+    let y = e.clientY;
+    if (x + menuWidth > window.innerWidth) {
+      x = x - menuWidth;
+    }
+    if (y + menuHeight > window.innerHeight) {
+      y = y - menuHeight;
+    }
+    setContextMenu({
+      show: true,
+      x,
+      y,
+      pageId
+    });
+  };
+
+  const handleCloseContextMenu = () => {
+    setContextMenu({ show: false, x: 0, y: 0, pageId: null });
+  };
+
+  useEffect(() => {
+    document.addEventListener('click', handleCloseContextMenu);
+    return () => {
+      document.removeEventListener('click', handleCloseContextMenu);
+    };
+  }, []);
+
   // Если активен приветственный экран
   if (showWelcome) {
     return (
@@ -691,21 +723,10 @@ function App() {
                   key={page.id}
                   className={`page-tab ${page.id === currentPageId ? 'active' : ''}`}
                   onClick={() => handlePageChange(page.id)}
+                  onContextMenu={(e) => handleContextMenu(e, page.id)}
                   title={page.title}
                 >
                   <span>{page.title}</span>
-                  {pages.length > 1 && (
-                    <button
-                      className="close-tab"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRemovePage(page.id);
-                      }}
-                      title="Закрыть страницу"
-                    >
-                      <FontAwesomeIcon icon={faTimes} />
-                    </button>
-                  )}
                 </div>
               ))}
               <button 
@@ -719,6 +740,30 @@ function App() {
           </div>
         </div>
       </animated.div>
+
+      {/* Контекстное меню для закладок */}
+      {contextMenu.show && (
+        <div 
+          className="context-menu"
+          style={{
+            position: 'fixed',
+            top: contextMenu.y,
+            left: contextMenu.x,
+            zIndex: 1000
+          }}
+        >
+          <button
+            className="context-menu-item"
+            onClick={() => {
+              handleRemovePage(contextMenu.pageId);
+              handleCloseContextMenu();
+            }}
+          >
+            <FontAwesomeIcon icon={faTimes} style={{ marginRight: '8px' }} />
+            Удалить страницу
+          </button>
+        </div>
+      )}
     </main>
   );
 }
