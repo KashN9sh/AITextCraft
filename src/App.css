@@ -477,13 +477,70 @@ button:focus {
   box-shadow: 0 0 0 2px var(--primary-light);
 }
 
-.markdown-body input[type="checkbox"] {
+/* Стили для чекбоксов в markdown */
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  margin: 4px 0;
+  padding: 2px 0;
+  margin-left: 1.5em;
+}
+
+.checkbox-item input[type="checkbox"] {
   margin-right: 8px;
   vertical-align: middle;
   cursor: pointer;
   width: 16px;
   height: 16px;
-  accent-color: var(--primary-color);
+  min-width: 16px;
+  min-height: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  background-color: #fff;
+  position: relative;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  transition: all 0.2s ease;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.checkbox-item input[type="checkbox"]:checked {
+  background-color: var(--primary-color);
+  border-color: var(--primary-dark);
+}
+
+.checkbox-item input[type="checkbox"]:checked::before {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.checkbox-item input[type="checkbox"]:not(:checked) {
+  background-color: #fff;
+  border-color: var(--border-color);
+}
+
+/* Стили для списков с чекбоксами */
+.markdown-body ul {
+  padding-left: 0;
+  margin-left: 0;
+}
+
+.markdown-body ul li {
+  list-style-type: none;
+  margin-left: 0;
+}
+
+.markdown-body ul li:has(.checkbox-item) {
+  margin-left: 0;
+  padding-left: 0;
 }
 
 .markdown-body input[type="checkbox"]:disabled {
@@ -1225,8 +1282,44 @@ button:focus {
 }
 
 .markdown-body input[type="checkbox"] {
-  margin-right: 0.5em;
-  accent-color: var(--primary-color);
+  margin-right: 8px;
+  vertical-align: middle;
+  cursor: pointer;
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  min-height: 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  background-color: #fff;
+  position: relative;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  transition: all 0.2s ease;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.markdown-body input[type="checkbox"]:checked {
+  background-color: var(--primary-color);
+  border-color: var(--primary-dark);
+}
+
+.markdown-body input[type="checkbox"]:checked::before {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #fff;
+  font-size: 10px;
+  line-height: 1;
+}
+
+.markdown-body input[type="checkbox"]:not(:checked) {
+  background-color: #fff;
+  border-color: var(--border-color);
 }
 
 .page-tabs {

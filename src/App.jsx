@@ -61,11 +61,25 @@ marked.setOptions({
 
 // Добавляем поддержку чекбоксов
 const renderer = new marked.Renderer();
-const originalCheckbox = renderer.checkbox;
 renderer.checkbox = function(checked) {
-  return `<input type="checkbox" ${checked ? 'checked' : ''} disabled />`;
+  console.log('Rendering checkbox, checked:', checked); // Отладочная информация
+  const isChecked = typeof checked === 'object' ? checked.checked : Boolean(checked);
+  return `<input type="checkbox" ${isChecked ? 'checked' : ''} disabled />`;
 };
 marked.use({ renderer });
+
+// Компонент для чекбокса
+const MarkdownCheckbox = ({ checked, onChange }) => {
+  return (
+    <input
+      type="checkbox"
+      checked={checked}
+      onChange={onChange}
+      onClick={(e) => e.stopPropagation()}
+      style={{ marginRight: '8px' }}
+    />
+  );
+};
 
 function App() {
   const [content, setContent] = useState("");
@@ -661,6 +675,50 @@ function App() {
     }
   };
 
+  // Обработчик клика по чекбоксу
+  const handleCheckboxClick = (e, blockIndex) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const blocks = splitMarkdownBlocks(content);
+    const block = blocks[blockIndex];
+    const lines = block.split('\n');
+    
+    // Находим индекс строки, где произошел клик
+    const checkboxIndex = Array.from(e.target.closest('.markdown-block').querySelectorAll('.checkbox-item')).indexOf(e.target.closest('.checkbox-item'));
+    
+    if (checkboxIndex !== -1) {
+      const line = lines[checkboxIndex];
+      const isChecked = line.includes('[x]');
+      lines[checkboxIndex] = line.replace(
+        /\[([ x])\]/,
+        isChecked ? '[ ]' : '[x]'
+      );
+      blocks[blockIndex] = lines.join('\n');
+      setContent(blocks.join('\n\n'));
+    }
+  };
+
+  // Функция для преобразования markdown в HTML с кастомными чекбоксами
+  const renderMarkdownWithCheckboxes = (text) => {
+    // Сначала заменяем чекбоксы на HTML
+    const withCheckboxes = text.split('\n').map(line => {
+      if (line.trim().startsWith('- [')) {
+        return line.replace(
+          /- \[([ x])\](.*)/,
+          (match, checked, content) => {
+            const isChecked = checked === 'x';
+            return `<div class="checkbox-item"><input type="checkbox" ${isChecked ? 'checked' : ''} />${content}</div>`;
+          }
+        );
+      }
+      return line;
+    }).join('\n');
+    
+    // Затем обрабатываем остальной markdown
+    return marked(withCheckboxes);
+  };
+
   // Рендерим каждый блок + пустой блок в конце
   const renderMarkdown = () => {
     const blocks = splitMarkdownBlocks(content);
@@ -682,7 +740,12 @@ function App() {
             className="markdown-block"
             onClick={() => handleBlockClick(idx, block)}
             style={{ cursor: 'text' }}
-            dangerouslySetInnerHTML={{ __html: marked(block) }}
+            dangerouslySetInnerHTML={{ __html: renderMarkdownWithCheckboxes(block) }}
+            onMouseDown={(e) => {
+              if (e.target.type === 'checkbox') {
+                handleCheckboxClick(e, idx);
+              }
+            }}
           />
         )
       ),
