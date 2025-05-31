@@ -226,275 +226,61 @@ function App() {
     if (e.key === 'Enter' && e.shiftKey) {
       e.preventDefault();
       handleBlockBlur();
+      return;
     }
-  };
 
-  // Добавление нового блока
-  const handleNewBlockChange = (e) => {
-    setNewBlockContent(e.target.value);
-  };
+    const textarea = e.target;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const value = textarea.value;
 
-  const handleNewBlockKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    // --- Авто-закрытие парных символов ---
+    const pairs = {
+      '*': '*',
+      '`': '`',
+      '[': ']',
+      '(': ')',
+      '"': '"',
+      '{': '}',
+      '<': '>'
+    };
+    
+    if (
+      Object.keys(pairs).includes(e.key) &&
+      !e.ctrlKey && !e.metaKey && !e.altKey && start === end
+    ) {
       e.preventDefault();
-      if (newBlockContent.trim() !== "") {
-        const blocks = splitMarkdownBlocks(content);
-        blocks.push(newBlockContent);
-        setContent(blocks.join('\n\n'));
-        setNewBlockContent("");
+      const before = value.substring(0, start);
+      const after = value.substring(end);
+      const newValue = before + e.key + pairs[e.key] + after;
+      if (editingBlockIdx !== null) {
+        setEditingContent(newValue);
+      } else {
+        setNewBlockContent(newValue);
       }
-    }
-  };
-
-  const handleNewBlockBlur = () => {
-    if (newBlockContent.trim() !== "") {
-      const blocks = splitMarkdownBlocks(content);
-      blocks.push(newBlockContent);
-      setContent(blocks.join('\n\n'));
-      setNewBlockContent("");
-    }
-  };
-
-  // Рендерим каждый блок + пустой блок в конце
-  const renderMarkdown = () => {
-    const blocks = splitMarkdownBlocks(content);
-    return [
-      ...blocks.map((block, idx) =>
-        editingBlockIdx === idx ? (
-          <textarea
-            key={idx}
-            ref={editingRef}
-            value={editingContent}
-            onChange={handleBlockEdit}
-            onBlur={handleBlockBlur}
-            onKeyDown={handleBlockKeyDown}
-            className="editing-block"
-          />
-        ) : (
-          <div
-            key={idx}
-            className="markdown-block"
-            onClick={() => handleBlockClick(idx, block)}
-            style={{ cursor: 'text' }}
-            dangerouslySetInnerHTML={{ __html: marked(block) }}
-          />
-        )
-      ),
-      // Пустой блок для создания нового
-      <textarea
-        key="new-block"
-        className="editing-block"
-        placeholder="Новый блок..."
-        value={newBlockContent}
-        onChange={handleNewBlockChange}
-        onKeyDown={handleNewBlockKeyDown}
-        onBlur={handleNewBlockBlur}
-        style={{ minHeight: '2em', marginTop: 12 }}
-      />
-    ];
-  };
-
-  // Быстрая вставка Markdown
-  const insertAtCursor = (before, after = "") => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selected = content.substring(start, end);
-    const newText =
-      content.substring(0, start) +
-      before +
-      selected +
-      after +
-      content.substring(end);
-    setContent(newText);
-    // Ставим курсор после вставки
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(
-        start + before.length,
-        end + before.length
-      );
-    }, 0);
-  };
-
-  // Функции для работы с буфером обмена
-  const handleCut = useCallback(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selectedText = content.substring(start, end);
-    
-    setClipboard(selectedText);
-    setContent(content.substring(0, start) + content.substring(end));
-    
-    // Устанавливаем курсор после вырезанного текста
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(start, start);
-    }, 0);
-  }, [content]);
-
-  const handleCopy = useCallback(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selectedText = content.substring(start, end);
-    
-    setClipboard(selectedText);
-    // Копируем в системный буфер обмена
-    navigator.clipboard.writeText(selectedText).catch(err => {
-      console.error('Ошибка при копировании в буфер обмена:', err);
-    });
-  }, [content]);
-
-  const handlePaste = useCallback(async () => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    
-    try {
-      // Пытаемся получить текст из системного буфера обмена
-      const text = await navigator.clipboard.readText();
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      
-      setContent(content.substring(0, start) + text + content.substring(end));
-      
-      // Устанавливаем курсор после вставленного текста
       setTimeout(() => {
         textarea.focus();
-        textarea.setSelectionRange(start + text.length, start + text.length);
+        textarea.setSelectionRange(start + 1, start + 1);
       }, 0);
-    } catch (err) {
-      console.error('Ошибка при чтении из буфера обмена:', err);
-      // Если не удалось получить из системного буфера, используем локальный
-      if (clipboard) {
-        const start = textarea.selectionStart;
-        const end = textarea.selectionEnd;
-        
-        setContent(content.substring(0, start) + clipboard + content.substring(end));
-        
-        setTimeout(() => {
-          textarea.focus();
-          textarea.setSelectionRange(start + clipboard.length, start + clipboard.length);
-        }, 0);
-      }
+      return;
     }
-  }, [content, clipboard]);
 
-  // Обработчик нажатия клавиш в textarea
-  const handleEditorKeyDown = (e) => {
-    const textarea = textareaRef.current;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    
-    // --- Стандартные клавиатурные сокращения ---
-    if (e.ctrlKey || e.metaKey) {
-      switch (e.key.toLowerCase()) {
-        case 'z':
-          e.preventDefault();
-          if (e.shiftKey) {
-            // Cmd/Ctrl + Shift + Z - повторить
-            document.execCommand('redo', false, null);
-          } else {
-            // Cmd/Ctrl + Z - отменить
-            document.execCommand('undo', false, null);
-          }
-          return;
-        case 'y':
-          e.preventDefault();
-          // Cmd/Ctrl + Y - повторить (альтернатива)
-          document.execCommand('redo', false, null);
-          return;
-        case 'a':
-          e.preventDefault();
-          // Cmd/Ctrl + A - выделить всё
-          textarea.select();
-          return;
-        case 'x':
-          e.preventDefault();
-          // Cmd/Ctrl + X - вырезать
-          handleCut();
-          return;
-        case 'c':
-          e.preventDefault();
-          // Cmd/Ctrl + C - копировать
-          handleCopy();
-          return;
-        case 'v':
-          e.preventDefault();
-          // Cmd/Ctrl + V - вставить
-          handlePaste();
-          return;
-        case 's':
-          e.preventDefault();
-          // Cmd/Ctrl + S - сохранить
-          handleSave();
-          return;
-        case 'f':
-          e.preventDefault();
-          // Cmd/Ctrl + F - поиск
-          // TODO: Добавить функционал поиска
-          return;
-        case 'b':
-          e.preventDefault();
-          insertAtCursor("**", "**");
-          return;
-        case 'i':
-          e.preventDefault();
-          insertAtCursor("*", "*");
-          return;
-        case 'k':
-          e.preventDefault();
-          insertAtCursor("[", "](url)");
-          return;
-      }
-      
-      if (e.shiftKey) {
-        switch (e.key.toLowerCase()) {
-          case 'h':
-            e.preventDefault();
-            insertAtCursor("# ");
-            return;
-          case 'l':
-            e.preventDefault();
-            insertAtCursor("- ");
-            return;
-          case 'c':
-            e.preventDefault();
-            insertAtCursor("`", "`");
-            return;
-          case 'q':
-            e.preventDefault();
-            insertAtCursor("> ");
-            return;
-          case 't':
-            e.preventDefault();
-            insertAtCursor("| | |\n| --- | --- |\n| | |");
-            return;
-          case 'b':
-            e.preventDefault();
-            insertAtCursor("- [ ] ");
-            return;
-        }
-      }
-    }
-    
     // --- Автоматическое форматирование заголовков ---
-    if (e.key === ' ' && content.substring(start - 1, start) === '#') {
-      const before = content.substring(0, start - 1);
-      const after = content.substring(end);
+    if (e.key === ' ' && value.substring(start - 1, start) === '#') {
+      const before = value.substring(0, start - 1);
+      const after = value.substring(end);
       const lines = before.split('\n');
       const currentLine = lines[lines.length - 1];
       
       if (currentLine.match(/^#+$/)) {
         e.preventDefault();
         const level = currentLine.length;
-        setContent(before + ' ' + after);
+        const newValue = before + ' ' + after;
+        if (editingBlockIdx !== null) {
+          setEditingContent(newValue);
+        } else {
+          setNewBlockContent(newValue);
+        }
         setTimeout(() => {
           textarea.focus();
           textarea.setSelectionRange(start, start);
@@ -505,20 +291,20 @@ function App() {
 
     // --- Умные ссылки ---
     if (e.key === 'Enter' && start === end) {
-      const before = content.substring(0, start);
-      const after = content.substring(end);
+      const before = value.substring(0, start);
+      const after = value.substring(end);
       const lines = before.split('\n');
       const currentLine = lines[lines.length - 1];
       
-      // Проверяем, является ли строка URL
       if (currentLine.match(/^(https?:\/\/[^\s]+)$/)) {
         e.preventDefault();
         const url = currentLine;
-        setContent(
-          before.replace(url, '') + 
-          `[${url}](${url})` + 
-          after
-        );
+        const newValue = before.replace(url, '') + `[${url}](${url})` + after;
+        if (editingBlockIdx !== null) {
+          setEditingContent(newValue);
+        } else {
+          setNewBlockContent(newValue);
+        }
         setTimeout(() => {
           textarea.focus();
           textarea.setSelectionRange(start + url.length + 4, start + url.length + 4);
@@ -529,15 +315,19 @@ function App() {
 
     // --- Автоматическое форматирование таблиц ---
     if (e.key === '|') {
-      const before = content.substring(0, start);
-      const after = content.substring(end);
+      const before = value.substring(0, start);
+      const after = value.substring(end);
       const lines = before.split('\n');
       const currentLine = lines[lines.length - 1];
       
-      // Если это первая ячейка в строке
       if (!currentLine.includes('|')) {
         e.preventDefault();
-        setContent(before + '| | |\n| --- | --- |\n| | |' + after);
+        const newValue = before + '| | |\n| --- | --- |\n| | |' + after;
+        if (editingBlockIdx !== null) {
+          setEditingContent(newValue);
+        } else {
+          setNewBlockContent(newValue);
+        }
         setTimeout(() => {
           textarea.focus();
           textarea.setSelectionRange(start + 2, start + 2);
@@ -547,11 +337,14 @@ function App() {
     }
 
     // --- Умные списки задач ---
-    if (e.key === '[' && content.substring(start - 2, start) === '- ') {
+    if (e.key === '[' && value.substring(start - 2, start) === '- ') {
       e.preventDefault();
-      setContent(
-        content.substring(0, start) + '[ ]' + content.substring(end)
-      );
+      const newValue = value.substring(0, start) + '[ ]' + value.substring(end);
+      if (editingBlockIdx !== null) {
+        setEditingContent(newValue);
+      } else {
+        setNewBlockContent(newValue);
+      }
       setTimeout(() => {
         textarea.focus();
         textarea.setSelectionRange(start + 3, start + 3);
@@ -559,56 +352,43 @@ function App() {
       return;
     }
 
-    // --- Авто-закрытие парных символов ---
-    const pairs = {
-      '*': '*',
-      '`': '`',
-      '[': ']',
-      '(': ')',
-      '"': '"',
-    };
-    if (
-      Object.keys(pairs).includes(e.key) &&
-      !e.ctrlKey && !e.metaKey && !e.altKey && start === end
-    ) {
-      e.preventDefault();
-      const before = content.substring(0, start);
-      const after = content.substring(end);
-      setContent(before + e.key + pairs[e.key] + after);
-      setTimeout(() => {
-        textarea.focus();
-        textarea.setSelectionRange(start + 1, start + 1);
-      }, 0);
-      return;
-    }
     // --- Автоматическое продолжение списков ---
     if (e.key === "Enter") {
-      const before = content.substring(0, start);
-      const after = content.substring(start);
-      // Получаем строку до курсора
+      const before = value.substring(0, start);
+      const after = value.substring(start);
       const lines = before.split("\n");
       const prevLine = lines[lines.length - 1];
-      // Проверяем, был ли это список
       const match = prevLine.match(/^(\s*)([-*+] |\d+\. )/);
+      
       if (match) {
         e.preventDefault();
         const indent = match[1] || "";
         const marker = match[2] || "";
-        // Если строка пустая (только маркер), удаляем маркер
+        
         if (prevLine.trim() === marker.trim()) {
-          setContent(before.replace(/\n?$/, "") + "\n" + after);
+          const newValue = before.replace(/\n?$/, "") + "\n" + after;
+          if (editingBlockIdx !== null) {
+            setEditingContent(newValue);
+          } else {
+            setNewBlockContent(newValue);
+          }
           setTimeout(() => {
             textarea.focus();
             textarea.setSelectionRange(start - marker.length, start - marker.length);
           }, 0);
         } else {
-          // Продолжаем список
-          setContent(before + "\n" + indent + marker + after);
+          const newValue = before + "\n" + indent + marker + after;
+          if (editingBlockIdx !== null) {
+            setEditingContent(newValue);
+          } else {
+            setNewBlockContent(newValue);
+          }
           setTimeout(() => {
             textarea.focus();
             textarea.setSelectionRange(start + 1 + indent.length + marker.length, start + 1 + indent.length + marker.length);
           }, 0);
         }
+        return;
       }
     }
   };
@@ -777,6 +557,59 @@ function App() {
       document.removeEventListener('click', handleCloseContextMenu);
     };
   }, []);
+
+  // Добавление нового блока
+  const handleNewBlockChange = (e) => {
+    setNewBlockContent(e.target.value);
+  };
+
+  const handleNewBlockBlur = () => {
+    if (newBlockContent.trim() !== "") {
+      const blocks = splitMarkdownBlocks(content);
+      blocks.push(newBlockContent);
+      setContent(blocks.join('\n\n'));
+      setNewBlockContent("");
+    }
+  };
+
+  // Рендерим каждый блок + пустой блок в конце
+  const renderMarkdown = () => {
+    const blocks = splitMarkdownBlocks(content);
+    return [
+      ...blocks.map((block, idx) =>
+        editingBlockIdx === idx ? (
+          <textarea
+            key={idx}
+            ref={editingRef}
+            value={editingContent}
+            onChange={handleBlockEdit}
+            onBlur={handleBlockBlur}
+            onKeyDown={handleBlockKeyDown}
+            className="editing-block"
+          />
+        ) : (
+          <div
+            key={idx}
+            className="markdown-block"
+            onClick={() => handleBlockClick(idx, block)}
+            style={{ cursor: 'text' }}
+            dangerouslySetInnerHTML={{ __html: marked(block) }}
+          />
+        )
+      ),
+      // Пустой блок для создания нового
+      <textarea
+        key="new-block"
+        className="editing-block"
+        placeholder="Новый блок..."
+        value={newBlockContent}
+        onChange={handleNewBlockChange}
+        onKeyDown={handleBlockKeyDown}
+        onBlur={handleNewBlockBlur}
+        style={{ minHeight: '2em', marginTop: 12 }}
+      />
+    ];
+  };
 
   // Если активен приветственный экран
   if (showWelcome) {
