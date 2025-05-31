@@ -101,14 +101,27 @@ function App() {
   const editingRef = useRef(null);
   const [newBlockContent, setNewBlockContent] = useState("");
 
+  // Эффект для автоматического изменения высоты текстового поля
   useEffect(() => {
-    // Применяем подсветку кода при любом изменении контента
+    const adjustTextareaHeight = (textarea) => {
+      if (!textarea) return;
+      textarea.style.height = '';
+      textarea.style.height = 'auto';
+      textarea.style.height = textarea.scrollHeight + 'px';
+    };
+
+    if (editingRef.current) {
+      adjustTextareaHeight(editingRef.current);
+    }
+  }, [editingContent]);
+
+  useEffect(() => {
     try {
       hljs.highlightAll();
     } catch (err) {
       console.error('Error highlighting code:', err);
     }
-  }, [content]);
+  }, [editingBlockIdx, editingContent, content]);
 
   const handleSave = useCallback(async (customPages) => {
     try {
@@ -255,7 +268,12 @@ function App() {
 
   // Изменение текста блока
   const handleBlockEdit = (e) => {
-    setEditingContent(e.target.value);
+    const textarea = e.target;
+    setEditingContent(textarea.value);
+    // Автоматическое изменение высоты
+    textarea.style.height = '';
+    textarea.style.height = 'auto';
+    textarea.style.height = textarea.scrollHeight + 'px';
   };
 
   // Сохранение изменений блока
@@ -733,6 +751,11 @@ function App() {
             onBlur={handleBlockBlur}
             onKeyDown={handleBlockKeyDown}
             className="editing-block"
+            onFocus={e => {
+              e.target.style.height = '';
+              e.target.style.height = 'auto';
+              e.target.style.height = e.target.scrollHeight + 'px';
+            }}
           />
         ) : (
           <div

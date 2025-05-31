@@ -1477,26 +1477,22 @@ button:focus {
 
 .editing-block {
   width: 100%;
-  min-height: 2em;
-  padding: 8px;
-  margin: 4px 0;
-  border-radius: 4px;
   font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
   font-size: 14px;
   line-height: 1.6;
   background: var(--editor-bg);
   color: var(--text-color);
   outline: none;
-  border: none !important;
-  box-shadow: none !important;
-  resize: none !important;
-  background: transparent !important;
-  min-height: 0 !important;
-  padding: 0 8px !important;
-  margin: 0 !important;
-  overflow: visible !important;
-  box-sizing: border-box !important;
-  caret-color: var(--text-color) !important;
+  border: none;
+  box-shadow: none;
+  resize: none;
+  background: transparent;
+  padding: 0 8px;
+  margin: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+  caret-color: var(--text-color);
+  min-height: 2em;
 }
 
 .editing-block::-webkit-resizer,
