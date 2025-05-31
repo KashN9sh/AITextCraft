@@ -202,7 +202,7 @@ function App() {
     setTimeout(() => {
       if (editingRef.current) {
         editingRef.current.focus();
-        editingRef.current.setSelectionRange(0, 0);
+        editingRef.current.setSelectionRange(block.length, block.length);
       }
     }, 0);
   };
