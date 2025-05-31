@@ -2,29 +2,29 @@ import { InferenceClient } from "@huggingface/inference";
 
 const client = new InferenceClient(import.meta.env.VITE_HUGGINGFACE_API_KEY);
 
-export const getAIChatCompletion = async (messages) => {
+/**
+ * Универсальный ассистент: копирайтер, редактор, секретарь, помощник и др.
+ * @param {string} userPrompt - Ваш запрос (например: "Сделай резюме текста", "Придумай письмо", "Составь план дня", "Проверь орфографию", "Объясни, почему так лучше").
+ * @param {string} [role] - (опционально) Роль ассистента (например: "копирайтер", "редактор", "секретарь", "помощник").
+ * @returns {Promise<string>} - Ответ AI.
+ */
+export const askAssistant = async (userPrompt, role = "помощник") => {
+  const systemPrompt = `Ты — опытный ${role}. Пиши структурировано и в формате markdown.`;
   const chatCompletion = await client.chatCompletion({
-    provider: "auto", // Можно заменить на другого провайдера
-    model: "deepseek-ai/DeepSeek-R1-0528", // Можно заменить на другую модель
-    messages,
+    provider: "auto",
+    model: "deepseek-ai/DeepSeek-R1-0528-Qwen3-8B",
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt }
+    ],
   });
   return chatCompletion.choices[0].message.content;
 };
 
 export const generatePlan = async (prompt) => {
-  return getAIChatCompletion([
-    {
-      role: "user",
-      content: `Ты — персональный коуч. Составь план на день в формате markdown на основе следующего запроса: ${prompt}`,
-    },
-  ]);
+  return askAssistant(prompt);
 };
 
 export const getCoachingAdvice = async (context) => {
-  return getAIChatCompletion([
-    {
-      role: "user",
-      content: `Ты — персональный коуч. Дай совет в формате markdown на основе следующего контекста: ${context}`,
-    },
-  ]);
+  return askAssistant(context, "персональный коуч");
 }; 
