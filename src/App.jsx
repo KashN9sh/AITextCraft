@@ -50,6 +50,9 @@ function App() {
   const textareaRef = useRef(null);
   const [clipboard, setClipboard] = useState("");
   const [contextMenu, setContextMenu] = useState({ show: false, x: 0, y: 0, pageId: null });
+  const [renamingPageId, setRenamingPageId] = useState(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [renameMenu, setRenameMenu] = useState({ show: false, x: 0, y: 0, pageId: null });
 
   useEffect(() => {
     if (isPreview) {
@@ -57,24 +60,22 @@ function App() {
     }
   }, [isPreview, content]);
 
-  const handleSave = useCallback(async () => {
+  const handleSave = useCallback(async (customPages) => {
     try {
-      // Обновляем содержимое текущей страницы
-      const updatedPages = pages.map(page => 
-        page.id === currentPageId 
-          ? { ...page, content } 
+      const updatedPages = (customPages ?? pages).map(page =>
+        page.id === currentPageId
+          ? { ...page, content }
           : page
       );
       setPages(updatedPages);
 
-      // Сохраняем весь документ как JSON
       const documentData = {
         pages: updatedPages
       };
-      
-      await invoke("save_file", { 
-        content: JSON.stringify(documentData, null, 2), 
-        fileName 
+
+      await invoke("save_file", {
+        content: JSON.stringify(documentData, null, 2),
+        fileName
       });
       alert("Файл успешно сохранен!");
     } catch (error) {
@@ -601,6 +602,41 @@ function App() {
     setContextMenu({ show: false, x: 0, y: 0, pageId: null });
   };
 
+  const handleRenamePage = (pageId, title, event) => {
+    let x = event?.clientX || 100;
+    let y = event?.clientY || 100;
+    const menuWidth = 200;
+    const menuHeight = 40;
+    if (x + menuWidth > window.innerWidth) x = x - menuWidth;
+    if (y + menuHeight > window.innerHeight) y = y - menuHeight;
+    setRenameMenu({ show: true, x, y, pageId });
+    setRenamingPageId(pageId);
+    setRenameValue(title);
+    setContextMenu({ show: false, x: 0, y: 0, pageId: null });
+  };
+
+  const handleRenameInputChange = (e) => setRenameValue(e.target.value);
+
+  const handleRenameInputBlur = () => {
+    if (renamingPageId !== null) {
+      const updatedPages = pages.map(page =>
+        page.id === renamingPageId ? { ...page, title: renameValue.trim() || page.title } : page
+      );
+      setPages(updatedPages);
+      setRenamingPageId(null);
+      setRenameMenu({ show: false, x: 0, y: 0, pageId: null });
+      handleSave(updatedPages); // Сохраняем с актуальными страницами
+    }
+  };
+
+  const handleRenameInputKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      handleRenameInputBlur();
+    } else if (e.key === 'Escape') {
+      setRenamingPageId(null);
+    }
+  };
+
   useEffect(() => {
     document.addEventListener('click', handleCloseContextMenu);
     return () => {
@@ -725,6 +761,7 @@ function App() {
                   onClick={() => handlePageChange(page.id)}
                   onContextMenu={(e) => handleContextMenu(e, page.id)}
                   title={page.title}
+                  style={{ position: 'relative' }}
                 >
                   <span>{page.title}</span>
                 </div>
@@ -752,16 +789,60 @@ function App() {
             zIndex: 1000
           }}
         >
-          <button
+          <div
+            className="context-menu-item"
+            onClick={(e) => {
+              handleRenamePage(contextMenu.pageId, pages.find(p => p.id === contextMenu.pageId)?.title || "", e);
+            }}
+          >
+            Переименовать
+          </div>
+          <div
             className="context-menu-item"
             onClick={() => {
               handleRemovePage(contextMenu.pageId);
               handleCloseContextMenu();
             }}
           >
-            <FontAwesomeIcon icon={faTimes} style={{ marginRight: '8px' }} />
-            Удалить страницу
-          </button>
+            Удалить
+          </div>
+        </div>
+      )}
+
+      {renameMenu.show && renamingPageId && (
+        <div
+          style={{
+            position: 'fixed',
+            top: renameMenu.y,
+            left: renameMenu.x,
+            zIndex: 2000,
+            background: '#fff',
+            border: '1px solid var(--primary-dark)',
+            borderRadius: '8px',
+            boxShadow: '0 4px 12px ' + (getComputedStyle(document.documentElement).getPropertyValue('--shadow-color') || 'rgba(255,199,120,0.15)'),
+            padding: '6px 12px',
+            minWidth: '160px',
+            display: 'flex',
+            alignItems: 'center',
+          }}
+        >
+          <input
+            className="rename-page-input"
+            value={renameValue}
+            autoFocus
+            onChange={handleRenameInputChange}
+            onBlur={handleRenameInputBlur}
+            onKeyDown={handleRenameInputKeyDown}
+            style={{
+              width: '100%',
+              fontSize: '1em',
+              border: 'none',
+              outline: 'none',
+              background: 'transparent',
+              color: 'var(--text-color)',
+            }}
+            placeholder="Новое имя страницы"
+          />
         </div>
       )}
     </main>
