@@ -29,6 +29,7 @@ import FileExplorer from "./components/FileExplorer";
 import WelcomeScreen from "./components/WelcomeScreen";
 import { listen } from '@tauri-apps/api/event';
 import { useSpring, animated } from 'react-spring';
+import AICoach from "./components/AICoach";
 
 // Настраиваем marked для использования highlight.js и поддержки чекбоксов
 marked.setOptions({
@@ -100,6 +101,7 @@ function App() {
   const [editingContent, setEditingContent] = useState("");
   const editingRef = useRef(null);
   const [newBlockContent, setNewBlockContent] = useState("");
+  const [showAICoach, setShowAICoach] = useState(false);
 
   // Эффект для автоматического изменения высоты текстового поля
   useEffect(() => {
@@ -845,6 +847,13 @@ function App() {
                 >
                   <FontAwesomeIcon icon={faFolderOpen} />
                 </button>
+                <button
+                  onClick={() => setShowAICoach(!showAICoach)}
+                  className={`toolbar-button${showAICoach ? ' active' : ''}`}
+                  title="AI-коуч"
+                >
+                  🤖 AI-коуч
+                </button>
               </div>
               <div className="quick-insert-center">
                 {[
@@ -868,9 +877,9 @@ function App() {
                 ))}
               </div>
             </div>
-            {/* Только интерактивные markdown-блоки */}
+            {/* Только интерактивные markdown-блоки или AI-коуч */}
             <div className="preview markdown-body">
-              {renderMarkdown()}
+              {showAICoach ? <AICoach /> : renderMarkdown()}
             </div>
           </div>
           {/* Вкладки страниц справа, под редактором */}

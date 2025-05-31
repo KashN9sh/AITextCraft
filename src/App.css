@@ -1505,3 +1505,117 @@ button:focus {
   height: 0 !important;
 }
 
+/* Стили для AI коуча */
+.ai-coach {
+  padding: 20px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.mode-selector {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.mode-selector button {
+  padding: 10px 20px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.mode-selector button:hover {
+  background: #f0f0f0;
+}
+
+.mode-selector button.active {
+  background: #007bff;
+  color: white;
+  border-color: #0056b3;
+}
+
+.ai-coach form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ai-coach textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  resize: vertical;
+  min-height: 100px;
+  font-family: inherit;
+}
+
+.ai-coach button[type="submit"] {
+  padding: 10px 20px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.ai-coach button[type="submit"]:hover {
+  background: #218838;
+}
+
+.ai-coach button[type="submit"]:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+}
+
+.ai-coach .response {
+  margin-top: 20px;
+  padding: 20px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  background: #f8f9fa;
+}
+
+.ai-coach .response h1,
+.ai-coach .response h2,
+.ai-coach .response h3,
+.ai-coach .response h4,
+.ai-coach .response h5,
+.ai-coach .response h6 {
+  margin-top: 0;
+  color: #333;
+}
+
+.ai-coach .response ul,
+.ai-coach .response ol {
+  padding-left: 20px;
+}
+
+.ai-coach .response li {
+  margin: 5px 0;
+}
+
+.ai-coach .response code {
+  background: #f1f1f1;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: monospace;
+}
+
+.ai-coach .response pre {
+  background: #f1f1f1;
+  padding: 10px;
+  border-radius: 5px;
+  overflow-x: auto;
+}
+
+.ai-coach .response blockquote {
+  border-left: 4px solid #ccc;
+  margin: 0;
+  padding-left: 16px;
+  color: #666;
+}
