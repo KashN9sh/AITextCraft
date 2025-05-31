@@ -481,8 +481,8 @@ button:focus {
 .checkbox-item {
   display: flex;
   align-items: center;
-  margin: 4px 0;
-  padding: 2px 0;
+  margin: 0px 0;
+  padding: 0px 0;
   margin-left: 1.5em;
 }
 
@@ -1144,7 +1144,7 @@ button:focus {
 .markdown-body h6 {
   color: var(--primary-dark) !important;
   font-weight: 600;
-  margin-top: 1.5em;
+  margin-top: 0.2em;
   margin-bottom: 0.5em;
   line-height: 1.25;
 }
@@ -1180,10 +1180,13 @@ button:focus {
 
 .markdown-body p,
 .markdown-body ul,
-.markdown-body ol,
+.markdown-body ol {
+  margin-top: 0;
+}
+
 .markdown-body blockquote,
 .markdown-body pre {
-  margin-top: 0;
+  margin-top: 1em;
   margin-bottom: 1em;
 }
 
@@ -1462,8 +1465,8 @@ button:focus {
 
 .markdown-block {
   position: relative;
-  padding: 4px 8px;
-  margin: 4px 0;
+  padding: 0px;
+  margin: 0 8px;
   border-radius: 4px;
 }
 
