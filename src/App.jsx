@@ -68,18 +68,6 @@ renderer.checkbox = function(checked) {
 };
 marked.use({ renderer });
 
-// Компонент для чекбокса
-const MarkdownCheckbox = ({ checked, onChange }) => {
-  return (
-    <input
-      type="checkbox"
-      checked={checked}
-      onChange={onChange}
-      onClick={(e) => e.stopPropagation()}
-      style={{ marginRight: '8px' }}
-    />
-  );
-};
 
 function App() {
   const [content, setContent] = useState("");
