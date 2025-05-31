@@ -3,6 +3,25 @@ import { invoke } from "@tauri-apps/api/core";
 import { marked } from "marked";
 import hljs from "highlight.js";
 import "highlight.js/styles/github.css";
+import "highlight.js/lib/languages/javascript";
+import "highlight.js/lib/languages/python";
+import "highlight.js/lib/languages/java";
+import "highlight.js/lib/languages/cpp";
+import "highlight.js/lib/languages/csharp";
+import "highlight.js/lib/languages/php";
+import "highlight.js/lib/languages/ruby";
+import "highlight.js/lib/languages/go";
+import "highlight.js/lib/languages/rust";
+import "highlight.js/lib/languages/swift";
+import "highlight.js/lib/languages/kotlin";
+import "highlight.js/lib/languages/typescript";
+import "highlight.js/lib/languages/css";
+import "highlight.js/lib/languages/xml";
+import "highlight.js/lib/languages/json";
+import "highlight.js/lib/languages/yaml";
+import "highlight.js/lib/languages/markdown";
+import "highlight.js/lib/languages/bash";
+import "highlight.js/lib/languages/sql";
 import "./App.css";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faLink, faSave, faFolderOpen, faEye, faEdit, faHome, faPlus, faTimes } from '@fortawesome/free-solid-svg-icons';
@@ -15,19 +34,29 @@ import { useSpring, animated } from 'react-spring';
 marked.setOptions({
   highlight: function(code, lang) {
     if (lang && hljs.getLanguage(lang)) {
-      return hljs.highlight(code, { language: lang }).value;
+      try {
+        return hljs.highlight(code, { language: lang }).value;
+      } catch (err) {
+        console.error('Error highlighting code:', err);
+        return code;
+      }
     }
-    return hljs.highlightAuto(code).value;
+    try {
+      return hljs.highlightAuto(code).value;
+    } catch (err) {
+      console.error('Error auto-highlighting code:', err);
+      return code;
+    }
   },
-  gfm: true, // Включаем GitHub Flavored Markdown
-  breaks: true, // Включаем переносы строк
-  headerIds: true, // Включаем ID для заголовков
-  mangle: false, // Отключаем преобразование email-адресов
-  pedantic: false, // Отключаем педантичный режим
-  sanitize: false, // Отключаем санитизацию HTML
-  smartLists: true, // Включаем умные списки
-  smartypants: true, // Включаем умные кавычки
-  xhtml: false // Отключаем XHTML
+  gfm: true,
+  breaks: true,
+  headerIds: true,
+  mangle: false,
+  pedantic: false,
+  sanitize: false,
+  smartLists: true,
+  smartypants: true,
+  xhtml: false
 });
 
 // Добавляем поддержку чекбоксов
@@ -59,10 +88,13 @@ function App() {
   const [newBlockContent, setNewBlockContent] = useState("");
 
   useEffect(() => {
-    if (isPreview) {
+    // Применяем подсветку кода при любом изменении контента
+    try {
       hljs.highlightAll();
+    } catch (err) {
+      console.error('Error highlighting code:', err);
     }
-  }, [isPreview, content]);
+  }, [content]);
 
   const handleSave = useCallback(async (customPages) => {
     try {
