@@ -196,6 +196,7 @@ function App() {
 
   // Клик по блоку для редактирования
   const handleBlockClick = (idx, block) => {
+    console.log('Block clicked:', idx, block);
     setEditingBlockIdx(idx);
     setEditingContent(block);
     setTimeout(() => {
@@ -217,8 +218,8 @@ function App() {
     const blocks = splitMarkdownBlocks(content);
     blocks[editingBlockIdx] = editingContent;
     setContent(blocks.join('\n\n'));
-    setEditingBlockIdx(null);
-    setEditingContent("");
+    // Не сбрасываем editingContent, чтобы сохранить контент
+    // setEditingContent("");
   };
 
   // Сохранение по Shift+Enter
@@ -548,6 +549,62 @@ function App() {
       handleRenameInputBlur();
     } else if (e.key === 'Escape') {
       setRenamingPageId(null);
+    }
+  };
+
+  // Функция для вставки текста в позицию курсора
+  const insertAtCursor = (prefix, suffix = '') => {
+    // Получаем все блоки
+    const blocks = splitMarkdownBlocks(content);
+    
+    // Находим текущий блок, который редактируется
+    const currentBlock = blocks[editingBlockIdx];
+    console.log('Current editing block index:', editingBlockIdx);
+    console.log('Current block content:', currentBlock);
+    
+    if (editingBlockIdx !== null && editingRef.current) {
+      const textarea = editingRef.current;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const text = textarea.value;
+      const before = text.substring(0, start);
+      const selected = text.substring(start, end);
+      const after = text.substring(end);
+      
+      const newValue = before + prefix + selected + suffix + after;
+      
+      // Обновляем контент текущего блока
+      const updatedBlocks = [...blocks];
+      updatedBlocks[editingBlockIdx] = newValue;
+      const newContent = updatedBlocks.join('\n\n');
+      
+      // Обновляем состояние
+      setEditingContent(newValue);
+      setContent(newContent);
+      
+      // Устанавливаем курсор после вставленного текста
+      setTimeout(() => {
+        textarea.focus();
+        const newCursorPos = start + prefix.length + selected.length + suffix.length;
+        textarea.setSelectionRange(newCursorPos, newCursorPos);
+      }, 0);
+    } else {
+      // Если мы не в режиме редактирования, добавляем в конец текущего контента
+      const newContent = content + (content ? '\n\n' : '') + prefix + suffix;
+      setContent(newContent);
+      
+      // Создаем новый блок для редактирования
+      const newBlockIdx = blocks.length;
+      setEditingBlockIdx(newBlockIdx);
+      setEditingContent(prefix + suffix);
+      
+      // Устанавливаем фокус на новый блок
+      setTimeout(() => {
+        if (editingRef.current) {
+          editingRef.current.focus();
+          editingRef.current.setSelectionRange(prefix.length, prefix.length);
+        }
+      }, 0);
     }
   };
 
