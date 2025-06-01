@@ -295,14 +295,15 @@ function App() {
 
   // Модифицированный обработчик изменения текста блока
   const handleBlockEdit = async (e) => {
-    const newContent = e.target.value;
-    setEditingContent(newContent);
+    const textarea = e.target;
+    setEditingContent(textarea.value);
     
-    // Индексируем контент для автодополнения
-    await indexService.indexContent(newContent);
+    // Автоматическое изменение высоты
+    textarea.style.height = '';
+    textarea.style.height = 'auto';
+    textarea.style.height = textarea.scrollHeight + 'px';
     
     // Логика автодополнения
-    const textarea = e.target;
     const cursorPosition = textarea.selectionEnd;
     const textBeforeCursor = textarea.value.substring(0, cursorPosition);
     
@@ -325,6 +326,7 @@ function App() {
     }
     
     if (currentWord && currentWord.length >= 2) {
+      console.log('Поиск автодополнений для:', currentWord); // Отладочный вывод
       // Получаем подсказки для текущего слова
       const suggestions = await indexService.findCompletions(currentWord);
       
@@ -333,12 +335,26 @@ function App() {
         const textareaRect = textarea.getBoundingClientRect();
         const { left, top } = getCaretCoordinates(textarea, cursorPosition);
         
+        // Учитываем скролл страницы и позицию textarea
+        const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        
+        console.log('Позиция для автодополнения:', {
+          textareaRect,
+          caretCoords: { left, top },
+          scroll: { scrollLeft, scrollTop },
+          finalPosition: {
+            x: textareaRect.left + left + scrollLeft,
+            y: textareaRect.top + top + scrollTop + 20
+          }
+        }); // Отладочный вывод
+        
         setAutoComplete({
           visible: true,
           suggestions,
           position: { 
-            x: left,
-            y: top + 20
+            x: textareaRect.left + left + scrollLeft,
+            y: textareaRect.top + top + scrollTop + 20
           },
           prefix: currentWord,
           startPos,
@@ -458,13 +474,36 @@ function App() {
       return;
     }
 
-    // Обработка Enter для автодополнения
-    if (e.key === 'Enter' && !e.shiftKey && autoComplete.visible) {
-      e.preventDefault();
-      if (autoComplete.selectedIndex !== null && autoComplete.suggestions[autoComplete.selectedIndex]) {
-        handleAutoCompleteSelect(autoComplete.suggestions[autoComplete.selectedIndex].text);
+    // Обработка навигации по автокомплиту
+    if (autoComplete.visible) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setAutoComplete(prev => ({
+          ...prev,
+          selectedIndex: prev.selectedIndex === null ? 0 : 
+            (prev.selectedIndex + 1) % prev.suggestions.length
+        }));
+        return;
       }
-      return;
+      
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setAutoComplete(prev => ({
+          ...prev,
+          selectedIndex: prev.selectedIndex === null ? prev.suggestions.length - 1 :
+            (prev.selectedIndex - 1 + prev.suggestions.length) % prev.suggestions.length
+        }));
+        return;
+      }
+
+      // Обработка Enter для автодополнения
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        if (autoComplete.selectedIndex !== null && autoComplete.suggestions[autoComplete.selectedIndex]) {
+          handleAutoCompleteSelect(autoComplete.suggestions[autoComplete.selectedIndex].text);
+        }
+        return;
+      }
     }
 
     // Обработка обычного Enter
@@ -934,10 +973,7 @@ function App() {
   const handleNewBlockChange = async (e) => {
     setNewBlockContent(e.target.value);
     
-    // Индексируем контент для автодополнения
-    await indexService.indexContent(e.target.value);
-    
-    // Логика автодополнения
+    // Логика автодополнения - аналогично handleBlockEdit
     const textarea = e.target;
     const cursorPosition = textarea.selectionEnd;
     const textBeforeCursor = textarea.value.substring(0, cursorPosition);
@@ -1088,7 +1124,7 @@ function App() {
   useEffect(() => {
     if (currentPages.length > 0) {
       indexService.indexAllPages(currentPages).catch(error => {
-        console.error("Ошибка при индексации страниц:", error);
+        console.error('Error indexing pages:', error);
       });
     }
   }, [currentPages]);
@@ -1479,6 +1515,16 @@ function App() {
           />
         </div>
       )}
+
+      {/* Добавляем компонент автодополнения */}
+      <AutoComplete
+        visible={autoComplete.visible}
+        suggestions={autoComplete.suggestions}
+        position={autoComplete.position}
+        selectedIndex={autoComplete.selectedIndex}
+        onSelect={handleAutoCompleteSelect}
+        onDismiss={hideAutoComplete}
+      />
 
       {editingBlockIdx !== null && currentTableData && (
         <TableEditor

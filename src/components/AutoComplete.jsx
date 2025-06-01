@@ -31,29 +31,42 @@ const AutoComplete = ({
 
   return (
     <div 
-      className="auto-complete"
+      className="auto-complete-container"
       style={{
-        position: 'absolute',
-        left: position.x,
-        top: position.y,
+        position: 'fixed',
+        left: 0,
+        top: 0,
+        width: '100%',
+        height: '100%',
+        pointerEvents: 'none',
         zIndex: 1000
       }}
     >
-      <div className="auto-complete-list">
-        {suggestions.map((suggestion, index) => (
-          <div
-            key={index}
-            className={`auto-complete-item ${index === selectedIndex ? 'selected' : ''}`}
-            onClick={() => onSelect(suggestion.text)}
-            onMouseEnter={() => onSelect(suggestion.text)}
-          >
-            <span className="auto-complete-icon">{getIcon(suggestion.type)}</span>
-            <span className="auto-complete-text">{suggestion.text}</span>
-            {suggestion.type === 'template' && (
-              <span className="auto-complete-hint">шаблон</span>
-            )}
-          </div>
-        ))}
+      <div 
+        className="auto-complete"
+        style={{
+          position: 'absolute',
+          left: position.x,
+          top: position.y,
+          pointerEvents: 'auto'
+        }}
+      >
+        <div className="auto-complete-list">
+          {suggestions.map((suggestion, index) => (
+            <div
+              key={index}
+              className={`auto-complete-item ${index === selectedIndex ? 'selected' : ''}`}
+              onClick={() => onSelect(suggestion.text)}
+              onMouseEnter={() => onSelect(suggestion.text)}
+            >
+              <span className="auto-complete-icon">{getIcon(suggestion.type)}</span>
+              <span className="auto-complete-text">{suggestion.text}</span>
+              {suggestion.type === 'template' && (
+                <span className="auto-complete-hint">шаблон</span>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
