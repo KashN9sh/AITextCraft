@@ -120,6 +120,12 @@ function App() {
   // Добавляем состояние для хранения данных текущей таблицы
   const [currentTableData, setCurrentTableData] = useState(null);
 
+  // Добавляем состояние для панели форматирования текста
+  const [textToolbar, setTextToolbar] = useState({
+    visible: false,
+    position: { x: 0, y: 0 }
+  });
+
   // Эффект для автоматического изменения высоты текстового поля
   useEffect(() => {
     const adjustTextareaHeight = (textarea) => {
@@ -331,36 +337,24 @@ function App() {
       }
     }
     
-    if (currentWord && currentWord.length >= 2) {
-      try {
-        // Получаем подсказки для текущего слова
-        const suggestions = await indexService.findCompletions(currentWord);
+    // Проверяем, есть ли выделенный текст для показа панели форматирования
+    const selectedText = textarea.value.substring(textarea.selectionStart, textarea.selectionEnd);
+    if (selectedText && selectedText.length > 0) {
+      // Получаем координаты выделения для отображения панели инструментов
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        const rect = range.getBoundingClientRect();
         
-        if (suggestions.length > 0) {
-          // Расчитываем позицию для отображения автодополнения
-          const textareaRect = textarea.getBoundingClientRect();
-          const { left, top } = getCaretCoordinates(textarea, cursorPosition);
-          
-          setAutoComplete({
-            visible: true,
-            suggestions,
-            position: { 
-              x: left,
-              y: top + 20
-            },
-            prefix: currentWord,
-            startPos,
-            selectedIndex: 0
-          });
-        } else {
-          hideAutoComplete();
-        }
-      } catch (error) {
-        console.error('Error getting completions:', error);
-        hideAutoComplete();
+        // Показываем панель форматирования над выделенным текстом
+        setTextToolbar({
+          visible: true,
+          position: { x: rect.left, y: rect.top - 40 }
+        });
       }
     } else {
-      hideAutoComplete();
+      // Скрываем панель форматирования, если нет выделенного текста
+      setTextToolbar({ visible: false, position: { x: 0, y: 0 } });
     }
   };
   
@@ -458,49 +452,32 @@ function App() {
   
   // Модифицированный обработчик нажатия клавиш для поддержки автодополнения
   const handleBlockKeyDown = (e) => {
-    // Если автодополнение активно, обрабатываем навигацию по списку
-    if (autoComplete.visible && autoComplete.suggestions.length > 0) {
-      // Навигация с помощью стрелок
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        const newIndex = Math.min(
-          (autoComplete.selectedIndex || 0) + 1, 
-          autoComplete.suggestions.length - 1
-        );
-        setAutoComplete(prev => ({ ...prev, selectedIndex: newIndex }));
-        return;
-      } 
-      
-      if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        const newIndex = Math.max((autoComplete.selectedIndex || 0) - 1, 0);
-        setAutoComplete(prev => ({ ...prev, selectedIndex: newIndex }));
-        return;
-      }
-      
-      // Выбор с помощью Tab или Enter
-      if (e.key === 'Tab' || e.key === 'Enter') {
-        e.preventDefault();
-        const selectedIndex = autoComplete.selectedIndex || 0;
-        if (autoComplete.suggestions[selectedIndex]) {
-          handleAutoCompleteSelect(autoComplete.suggestions[selectedIndex].text);
-        }
-        return;
-      }
-      
-      // Закрытие с помощью Escape
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        hideAutoComplete();
-        return;
-      }
-    }
-
-    // Продолжаем обрабатывать другие горячие клавиши
     if (e.key === 'Enter' && e.shiftKey) {
       e.preventDefault();
       handleBlockBlur();
       return;
+    }
+
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      handleBlockBlur();
+      return;
+    }
+
+    // Остальная логика автодополнения
+    if (e.key === 'Enter' && !e.shiftKey && autoComplete.visible) {
+      e.preventDefault();
+      if (autoComplete.selectedIndex !== null) {
+        const selectedSuggestion = autoComplete.suggestions[autoComplete.selectedIndex];
+        const beforeCursor = editingContent.substring(0, autoComplete.position.x);
+        const afterCursor = editingContent.substring(autoComplete.position.x);
+        const lastWord = beforeCursor.split(/\s+/).pop();
+        const newContent = beforeCursor.substring(0, beforeCursor.length - lastWord.length) + 
+                          selectedSuggestion + afterCursor;
+        setEditingContent(newContent);
+        setEditingBlockIdx(null);
+        hideAutoComplete();
+      }
     }
 
     const textarea = e.target;
@@ -677,8 +654,8 @@ function App() {
     const blocks = splitMarkdownBlocks(content);
     blocks[editingBlockIdx] = editingContent;
     setContent(blocks.join('\n\n'));
-    // Не сбрасываем editingContent, чтобы сохранить контент
-    // setEditingContent("");
+    setEditingBlockIdx(null); // Сбрасываем индекс редактируемого блока
+    setEditingContent(""); // Очищаем содержимое редактируемого блока
   };
 
   // Анимация для контейнера редактора
@@ -1110,13 +1087,74 @@ function App() {
     setIsTableEditorOpen(false);
   };
 
+  // Добавляем функцию для форматирования выделенного текста
+  const formatSelectedText = (format) => {
+    if (editingRef.current) {
+      const textarea = editingRef.current;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const selectedText = textarea.value.substring(start, end);
+      
+      if (selectedText) {
+        let formattedText = '';
+        
+        switch (format) {
+          case 'bold':
+            formattedText = `**${selectedText}**`;
+            break;
+          case 'italic':
+            formattedText = `*${selectedText}*`;
+            break;
+          case 'code':
+            formattedText = `\`${selectedText}\``;
+            break;
+          case 'link':
+            formattedText = `[${selectedText}](url)`;
+            break;
+          case 'heading':
+            formattedText = `## ${selectedText}`;
+            break;
+          default:
+            formattedText = selectedText;
+        }
+        
+        const newValue = textarea.value.substring(0, start) + formattedText + textarea.value.substring(end);
+        setEditingContent(newValue);
+        
+        // Перемещаем курсор после вставленного текста
+        setTimeout(() => {
+          textarea.focus();
+          
+          // Для ссылок устанавливаем курсор на позицию URL
+          if (format === 'link') {
+            const urlPosition = start + selectedText.length + 3;
+            textarea.setSelectionRange(urlPosition, urlPosition + 3);
+          } else {
+            textarea.setSelectionRange(start + formattedText.length, start + formattedText.length);
+          }
+        }, 0);
+        
+        // Скрываем панель форматирования
+        setTextToolbar({ visible: false, position: { x: 0, y: 0 } });
+      }
+    }
+  };
+
   // Модифицируем renderMarkdown для добавления обработчика клика по таблице
   const renderMarkdown = () => {
     const blocks = splitMarkdownBlocks(content);
     return [
       ...blocks.map((block, idx) =>
         editingBlockIdx === idx ? (
-          <div key={idx} style={{ position: 'relative' }}>
+          <div key={idx} style={{ position: 'relative' }} className="editing-block-container">
+            <div className="block-type-indicator">
+              {block.startsWith('#') ? 'Заголовок' : 
+               block.startsWith('```') ? 'Блок кода' : 
+               block.startsWith('>') ? 'Цитата' : 
+               block.startsWith('- [ ]') || block.startsWith('- [x]') ? 'Список задач' : 
+               block.startsWith('-') || block.startsWith('*') ? 'Список' : 
+               block.startsWith('|') && block.includes('|') ? 'Таблица' : 'Текст'}
+            </div>
             <textarea
               ref={editingRef}
               value={editingContent}
@@ -1124,12 +1162,49 @@ function App() {
               onBlur={handleBlockBlur}
               onKeyDown={handleBlockKeyDown}
               className="editing-block"
+              placeholder="Начните ввод или вставьте содержимое..."
               onFocus={e => {
                 e.target.style.height = '';
                 e.target.style.height = 'auto';
                 e.target.style.height = e.target.scrollHeight + 'px';
               }}
             />
+            <div className="editing-controls">
+              <button 
+                className="done-button"
+                onClick={handleBlockBlur}
+                title="Готово (Shift + Enter)"
+              >
+                Готово
+              </button>
+              <span className="editing-hint">Shift + Enter для сохранения</span>
+            </div>
+            {textToolbar.visible && (
+              <div 
+                className="text-formatting-toolbar" 
+                style={{ 
+                  position: 'absolute', 
+                  top: textToolbar.position.y, 
+                  left: textToolbar.position.x 
+                }}
+              >
+                <button onClick={() => formatSelectedText('bold')} title="Жирный текст">
+                  <b>B</b>
+                </button>
+                <button onClick={() => formatSelectedText('italic')} title="Курсив">
+                  <i>I</i>
+                </button>
+                <button onClick={() => formatSelectedText('code')} title="Код">
+                  <code>{`{}`}</code>
+                </button>
+                <button onClick={() => formatSelectedText('link')} title="Ссылка">
+                  <span>🔗</span>
+                </button>
+                <button onClick={() => formatSelectedText('heading')} title="Заголовок">
+                  <span>H</span>
+                </button>
+              </div>
+            )}
             {autoComplete.visible && editingBlockIdx === idx && (
               <AutoComplete
                 suggestions={autoComplete.suggestions}
@@ -1147,6 +1222,7 @@ function App() {
             className="markdown-block"
             onClick={() => handleBlockClick(idx, block)}
             style={{ cursor: 'text' }}
+            data-markdown={block}
             dangerouslySetInnerHTML={{ __html: renderMarkdownWithCheckboxes(block) }}
             onMouseDown={(e) => {
               if (e.target.type === 'checkbox') {
@@ -1159,27 +1235,16 @@ function App() {
         )
       ),
       // Пустой блок для создания нового
-      <div key="new-block" style={{ position: 'relative' }}>
-        <textarea
-          className="editing-block"
-          placeholder="Новый блок..."
+      <div key="new-block" className="new-block-container">
+        <input
+          type="text"
+          placeholder="Введите '/' для команд или начните печатать..."
           value={newBlockContent}
           onChange={handleNewBlockChange}
-          onKeyDown={handleBlockKeyDown}
+          onKeyDown={e => handleBlockKeyDown(e, null, true)}
           onBlur={handleNewBlockBlur}
-          style={{ minHeight: '2em', marginTop: 12 }}
-          onFocus={() => setEditingBlockIdx(null)}
+          className="new-block-input"
         />
-        {autoComplete.visible && editingBlockIdx === null && (
-          <AutoComplete
-            suggestions={autoComplete.suggestions}
-            position={autoComplete.position}
-            visible={autoComplete.visible}
-            onSelect={handleAutoCompleteSelect}
-            onDismiss={hideAutoComplete}
-            selectedIndex={autoComplete.selectedIndex || 0}
-          />
-        )}
       </div>
     ];
   };
