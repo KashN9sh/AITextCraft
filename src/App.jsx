@@ -30,6 +30,8 @@ import WelcomeScreen from "./components/WelcomeScreen";
 import { listen } from '@tauri-apps/api/event';
 import { useSpring, animated } from 'react-spring';
 import AICoach from "./components/AICoach";
+import AutoComplete from "./components/AutoComplete";
+import indexService from "./services/indexService";
 
 // Настраиваем marked для использования highlight.js и поддержки чекбоксов
 marked.setOptions({
@@ -102,6 +104,15 @@ function App() {
   const editingRef = useRef(null);
   const [newBlockContent, setNewBlockContent] = useState("");
   const [showAICoach, setShowAICoach] = useState(false);
+  
+  // Состояние для автодополнения
+  const [autoComplete, setAutoComplete] = useState({
+    visible: false,
+    suggestions: [],
+    position: { x: 0, y: 0 },
+    prefix: "",
+    selectedIndex: null
+  });
 
   // Эффект для автоматического изменения высоты текстового поля
   useEffect(() => {
@@ -283,28 +294,209 @@ function App() {
     }, 0);
   };
 
-  // Изменение текста блока
+  // Модифицированный обработчик изменения текста блока
   const handleBlockEdit = (e) => {
     const textarea = e.target;
     setEditingContent(textarea.value);
+    
     // Автоматическое изменение высоты
     textarea.style.height = '';
     textarea.style.height = 'auto';
     textarea.style.height = textarea.scrollHeight + 'px';
+    
+    // Логика автодополнения
+    const cursorPosition = textarea.selectionEnd;
+    const textBeforeCursor = textarea.value.substring(0, cursorPosition);
+    
+    // Находим текущее слово или тег перед курсором
+    let currentWord = '';
+    let startPos = cursorPosition;
+    
+    // Ищем теги, начинающиеся с @ или #
+    const tagMatch = textBeforeCursor.match(/(?:^|\s)([#@][a-zа-яё0-9_-]*)$/i);
+    if (tagMatch) {
+      currentWord = tagMatch[1];
+      startPos = textBeforeCursor.lastIndexOf(currentWord);
+    } else {
+      // Ищем обычные слова
+      const wordMatch = textBeforeCursor.match(/([a-zа-яё0-9_-]+)$/i);
+      if (wordMatch) {
+        currentWord = wordMatch[1];
+        startPos = textBeforeCursor.lastIndexOf(currentWord);
+      }
+    }
+    
+    if (currentWord && currentWord.length >= 2) {
+      console.log('Поиск автодополнений для:', currentWord); // Отладочный вывод
+      // Получаем подсказки для текущего слова
+      const suggestions = indexService.findCompletions(currentWord);
+      
+      if (suggestions.length > 0) {
+        // Расчитываем позицию для отображения автодополнения
+        const textareaRect = textarea.getBoundingClientRect();
+        const { left, top } = getCaretCoordinates(textarea, cursorPosition);
+        
+        console.log('Позиция для автодополнения:', {
+          textareaRect,
+          caretCoords: { left, top },
+          finalPosition: {
+            x: textareaRect.left + left,
+            y: textareaRect.top + top + 20
+          }
+        }); // Отладочный вывод
+        
+        setAutoComplete({
+          visible: true,
+          suggestions,
+          position: { 
+            x: left,
+            y: top + 20
+          },
+          prefix: currentWord,
+          startPos,
+          selectedIndex: 0
+        });
+      } else {
+        hideAutoComplete();
+      }
+    } else {
+      hideAutoComplete();
+    }
   };
-
-  // Сохранение изменений блока
-  const handleBlockBlur = () => {
-    if (editingBlockIdx === null) return;
-    const blocks = splitMarkdownBlocks(content);
-    blocks[editingBlockIdx] = editingContent;
-    setContent(blocks.join('\n\n'));
-    // Не сбрасываем editingContent, чтобы сохранить контент
-    // setEditingContent("");
+  
+  // Функция для скрытия автодополнения
+  const hideAutoComplete = () => {
+    setAutoComplete(prev => ({ ...prev, visible: false, suggestions: [], selectedIndex: null }));
   };
-
-  // Сохранение по Shift+Enter
+  
+  // Получение координат каретки в textarea
+  const getCaretCoordinates = (textarea, position) => {
+    const { offsetLeft, offsetTop } = textarea;
+    const div = document.createElement('div');
+    const style = getComputedStyle(textarea);
+    
+    ['fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'padding', 'border', 'boxSizing'].forEach(prop => {
+      div.style[prop] = style[prop];
+    });
+    
+    div.style.position = 'absolute';
+    div.style.top = '0';
+    div.style.left = '0';
+    div.style.visibility = 'hidden';
+    div.style.whiteSpace = 'pre-wrap';
+    div.style.width = `${textarea.clientWidth}px`;
+    
+    const textBeforeCursor = textarea.value.substring(0, position);
+    div.textContent = textBeforeCursor;
+    
+    const span = document.createElement('span');
+    span.textContent = textarea.value.substring(position) || '.';
+    div.appendChild(span);
+    
+    document.body.appendChild(div);
+    const { offsetLeft: spanLeft, offsetTop: spanTop } = span;
+    document.body.removeChild(div);
+    
+    console.log('Координаты каретки:', { left: spanLeft, top: spanTop }); // Отладочный вывод
+    console.log('Размеры textarea:', { 
+      clientWidth: textarea.clientWidth,
+      clientHeight: textarea.clientHeight,
+      offsetLeft,
+      offsetTop
+    }); // Отладочный вывод
+    
+    return { left: spanLeft, top: spanTop };
+  };
+  
+  // Обработчик выбора варианта автодополнения
+  const handleAutoCompleteSelect = (text) => {
+    const { prefix, startPos } = autoComplete;
+    
+    // Если редактируем существующий блок
+    if (editingBlockIdx !== null && editingRef.current) {
+      const textarea = editingRef.current;
+      const cursorPosition = textarea.selectionEnd;
+      
+      // Заменяем текущее слово на выбранное
+      const textBefore = textarea.value.substring(0, startPos);
+      const textAfter = textarea.value.substring(cursorPosition);
+      const newValue = textBefore + text + textAfter;
+      
+      setEditingContent(newValue);
+      
+      // Устанавливаем курсор после вставленного текста
+      setTimeout(() => {
+        textarea.focus();
+        const newCursorPos = startPos + text.length;
+        textarea.setSelectionRange(newCursorPos, newCursorPos);
+      }, 0);
+    } 
+    // Если редактируем новый блок
+    else {
+      const textareaElement = document.querySelector('textarea[placeholder="Новый блок..."]');
+      if (textareaElement) {
+        const cursorPosition = textareaElement.selectionEnd;
+        
+        // Заменяем текущее слово на выбранное
+        const textBefore = textareaElement.value.substring(0, startPos);
+        const textAfter = textareaElement.value.substring(cursorPosition);
+        const newValue = textBefore + text + textAfter;
+        
+        setNewBlockContent(newValue);
+        
+        // Устанавливаем курсор после вставленного текста
+        setTimeout(() => {
+          textareaElement.focus();
+          const newCursorPos = startPos + text.length;
+          textareaElement.setSelectionRange(newCursorPos, newCursorPos);
+        }, 0);
+      }
+    }
+    
+    hideAutoComplete();
+  };
+  
+  // Модифицированный обработчик нажатия клавиш для поддержки автодополнения
   const handleBlockKeyDown = (e) => {
+    // Если автодополнение активно, обрабатываем навигацию по списку
+    if (autoComplete.visible && autoComplete.suggestions.length > 0) {
+      // Навигация с помощью стрелок
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        const newIndex = Math.min(
+          (autoComplete.selectedIndex || 0) + 1, 
+          autoComplete.suggestions.length - 1
+        );
+        setAutoComplete(prev => ({ ...prev, selectedIndex: newIndex }));
+        return;
+      } 
+      
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        const newIndex = Math.max((autoComplete.selectedIndex || 0) - 1, 0);
+        setAutoComplete(prev => ({ ...prev, selectedIndex: newIndex }));
+        return;
+      }
+      
+      // Выбор с помощью Tab или Enter
+      if (e.key === 'Tab' || e.key === 'Enter') {
+        e.preventDefault();
+        const selectedIndex = autoComplete.selectedIndex || 0;
+        if (autoComplete.suggestions[selectedIndex]) {
+          handleAutoCompleteSelect(autoComplete.suggestions[selectedIndex].text);
+        }
+        return;
+      }
+      
+      // Закрытие с помощью Escape
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        hideAutoComplete();
+        return;
+      }
+    }
+
+    // Продолжаем обрабатывать другие горячие клавиши
     if (e.key === 'Enter' && e.shiftKey) {
       e.preventDefault();
       handleBlockBlur();
@@ -473,6 +665,20 @@ function App() {
         return;
       }
     }
+  };
+
+  // Обработчик потери фокуса должен скрывать автодополнение
+  const handleBlockBlur = () => {
+    if (editingBlockIdx === null) return;
+    
+    // Скрываем автодополнение
+    hideAutoComplete();
+    
+    const blocks = splitMarkdownBlocks(content);
+    blocks[editingBlockIdx] = editingContent;
+    setContent(blocks.join('\n\n'));
+    // Не сбрасываем editingContent, чтобы сохранить контент
+    // setEditingContent("");
   };
 
   // Анимация для контейнера редактора
@@ -699,9 +905,62 @@ function App() {
   // Добавление нового блока
   const handleNewBlockChange = (e) => {
     setNewBlockContent(e.target.value);
+    
+    // Логика автодополнения - аналогично handleBlockEdit
+    const textarea = e.target;
+    const cursorPosition = textarea.selectionEnd;
+    const textBeforeCursor = textarea.value.substring(0, cursorPosition);
+    
+    // Находим текущее слово или тег перед курсором
+    let currentWord = '';
+    let startPos = cursorPosition;
+    
+    // Ищем теги, начинающиеся с @ или #
+    const tagMatch = textBeforeCursor.match(/(?:^|\s)([#@][a-zа-яё0-9_-]*)$/i);
+    if (tagMatch) {
+      currentWord = tagMatch[1];
+      startPos = textBeforeCursor.lastIndexOf(currentWord);
+    } else {
+      // Ищем обычные слова
+      const wordMatch = textBeforeCursor.match(/([a-zа-яё0-9_-]+)$/i);
+      if (wordMatch) {
+        currentWord = wordMatch[1];
+        startPos = textBeforeCursor.lastIndexOf(currentWord);
+      }
+    }
+    
+    if (currentWord && currentWord.length >= 2) {
+      // Получаем подсказки для текущего слова
+      const suggestions = indexService.findCompletions(currentWord);
+      
+      if (suggestions.length > 0) {
+        // Расчитываем позицию для отображения автодополнения
+        const textareaRect = textarea.getBoundingClientRect();
+        const { left, top } = getCaretCoordinates(textarea, cursorPosition);
+        
+        setAutoComplete({
+          visible: true,
+          suggestions,
+          position: { 
+            x: left,
+            y: top + 20
+          },
+          prefix: currentWord,
+          startPos,
+          selectedIndex: 0
+        });
+      } else {
+        hideAutoComplete();
+      }
+    } else {
+      hideAutoComplete();
+    }
   };
 
   const handleNewBlockBlur = () => {
+    // Скрываем автодополнение
+    hideAutoComplete();
+    
     if (newBlockContent.trim() !== "") {
       const blocks = splitMarkdownBlocks(content);
       blocks.push(newBlockContent);
@@ -754,26 +1013,44 @@ function App() {
     return marked(withCheckboxes);
   };
 
+  // Эффект для индексации содержимого при загрузке страниц
+  useEffect(() => {
+    if (pages.length > 0) {
+      indexService.indexAllPages(pages);
+    }
+  }, [pages]);
+
   // Рендерим каждый блок + пустой блок в конце
   const renderMarkdown = () => {
     const blocks = splitMarkdownBlocks(content);
     return [
       ...blocks.map((block, idx) =>
         editingBlockIdx === idx ? (
-          <textarea
-            key={idx}
-            ref={editingRef}
-            value={editingContent}
-            onChange={handleBlockEdit}
-            onBlur={handleBlockBlur}
-            onKeyDown={handleBlockKeyDown}
-            className="editing-block"
-            onFocus={e => {
-              e.target.style.height = '';
-              e.target.style.height = 'auto';
-              e.target.style.height = e.target.scrollHeight + 'px';
-            }}
-          />
+          <div key={idx} style={{ position: 'relative' }}>
+            <textarea
+              ref={editingRef}
+              value={editingContent}
+              onChange={handleBlockEdit}
+              onBlur={handleBlockBlur}
+              onKeyDown={handleBlockKeyDown}
+              className="editing-block"
+              onFocus={e => {
+                e.target.style.height = '';
+                e.target.style.height = 'auto';
+                e.target.style.height = e.target.scrollHeight + 'px';
+              }}
+            />
+            {autoComplete.visible && editingBlockIdx === idx && (
+              <AutoComplete
+                suggestions={autoComplete.suggestions}
+                position={autoComplete.position}
+                visible={autoComplete.visible}
+                onSelect={handleAutoCompleteSelect}
+                onDismiss={hideAutoComplete}
+                selectedIndex={autoComplete.selectedIndex || 0}
+              />
+            )}
+          </div>
         ) : (
           <div
             key={idx}
@@ -790,16 +1067,28 @@ function App() {
         )
       ),
       // Пустой блок для создания нового
-      <textarea
-        key="new-block"
-        className="editing-block"
-        placeholder="Новый блок..."
-        value={newBlockContent}
-        onChange={handleNewBlockChange}
-        onKeyDown={handleBlockKeyDown}
-        onBlur={handleNewBlockBlur}
-        style={{ minHeight: '2em', marginTop: 12 }}
-      />
+      <div key="new-block" style={{ position: 'relative' }}>
+        <textarea
+          className="editing-block"
+          placeholder="Новый блок..."
+          value={newBlockContent}
+          onChange={handleNewBlockChange}
+          onKeyDown={handleBlockKeyDown}
+          onBlur={handleNewBlockBlur}
+          style={{ minHeight: '2em', marginTop: 12 }}
+          onFocus={() => setEditingBlockIdx(null)}
+        />
+        {autoComplete.visible && editingBlockIdx === null && (
+          <AutoComplete
+            suggestions={autoComplete.suggestions}
+            position={autoComplete.position}
+            visible={autoComplete.visible}
+            onSelect={handleAutoCompleteSelect}
+            onDismiss={hideAutoComplete}
+            selectedIndex={autoComplete.selectedIndex || 0}
+          />
+        )}
+      </div>
     ];
   };
 

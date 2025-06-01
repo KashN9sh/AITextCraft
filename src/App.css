@@ -1619,3 +1619,60 @@ button:focus {
   padding-left: 16px;
   color: #666;
 }
+
+/* Стили для автодополнения */
+.autocomplete-menu {
+  position: fixed;
+  z-index: 9999;
+  background-color: var(--glass-bg);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 4px 16px var(--glass-shadow);
+  border-radius: 8px;
+  max-width: 300px;
+  max-height: 200px;
+  overflow: auto;
+  padding: 4px 0;
+}
+
+.autocomplete-item {
+  padding: 6px 12px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.autocomplete-item:hover,
+.autocomplete-item.selected {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.autocomplete-item span:last-child {
+  opacity: 0.6;
+  font-size: 0.8em;
+}
+
+/* Стили для контейнера редактируемого блока */
+.editing-block-container {
+  position: relative;
+  width: 100%;
+}
+
+.editing-block {
+  width: 100%;
+  min-height: 2em;
+  padding: 8px;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  background-color: var(--glass-bg);
+  color: var(--text-color);
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  resize: none;
+  overflow: hidden;
+}
