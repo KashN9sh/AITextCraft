@@ -10,7 +10,8 @@ use tauri::Manager;
 use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
 use tauri::Emitter;
 use std::sync::Mutex;
-use indexer::Indexer;
+use tauri::State;
+use crate::indexer::Indexer;
 
 // Глобальный индексатор
 struct IndexerState(Mutex<Indexer>);
@@ -36,27 +37,19 @@ struct CompletionItem {
 }
 
 #[tauri::command]
-async fn index_content(content: String, state: tauri::State<'_, IndexerState>) -> Result<(), String> {
-    let mut indexer = state.0.lock().map_err(|_| "Failed to lock indexer".to_string())?;
-    indexer.index_content(&content);
+async fn index_content(content: String, state: State<'_, IndexerState>) -> Result<(), String> {
+    state.0.lock().unwrap().index_content(&content);
     Ok(())
 }
 
 #[tauri::command]
-async fn find_completions(prefix: String, limit: usize, state: tauri::State<'_, IndexerState>) -> Result<Vec<CompletionItem>, String> {
-    let indexer = state.0.lock().map_err(|_| "Failed to lock indexer".to_string())?;
-    let results = indexer.find_completions(&prefix, limit);
-    Ok(results.into_iter().map(|(text, type_, count)| CompletionItem {
-        text,
-        type_,
-        count,
-    }).collect())
+async fn find_completions(prefix: String, limit: usize, state: State<'_, IndexerState>) -> Result<Vec<(String, String, u32)>, String> {
+    Ok(state.0.lock().unwrap().find_completions(&prefix, limit))
 }
 
 #[tauri::command]
-async fn clear_index(state: tauri::State<'_, IndexerState>) -> Result<(), String> {
-    let mut indexer = state.0.lock().map_err(|_| "Failed to lock indexer".to_string())?;
-    indexer.clear();
+async fn clear_index(state: State<'_, IndexerState>) -> Result<(), String> {
+    state.0.lock().unwrap().clear();
     Ok(())
 }
 

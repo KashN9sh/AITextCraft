@@ -326,36 +326,31 @@ function App() {
     }
     
     if (currentWord && currentWord.length >= 2) {
-      console.log('Поиск автодополнений для:', currentWord); // Отладочный вывод
-      // Получаем подсказки для текущего слова
-      const suggestions = await indexService.findCompletions(currentWord);
-      
-      if (suggestions.length > 0) {
-        // Расчитываем позицию для отображения автодополнения
-        const textareaRect = textarea.getBoundingClientRect();
-        const { left, top } = getCaretCoordinates(textarea, cursorPosition);
+      try {
+        // Получаем подсказки для текущего слова
+        const suggestions = await indexService.findCompletions(currentWord);
         
-        console.log('Позиция для автодополнения:', {
-          textareaRect,
-          caretCoords: { left, top },
-          finalPosition: {
-            x: textareaRect.left + left,
-            y: textareaRect.top + top + 20
-          }
-        }); // Отладочный вывод
-        
-        setAutoComplete({
-          visible: true,
-          suggestions,
-          position: { 
-            x: left,
-            y: top + 20
-          },
-          prefix: currentWord,
-          startPos,
-          selectedIndex: 0
-        });
-      } else {
+        if (suggestions.length > 0) {
+          // Расчитываем позицию для отображения автодополнения
+          const textareaRect = textarea.getBoundingClientRect();
+          const { left, top } = getCaretCoordinates(textarea, cursorPosition);
+          
+          setAutoComplete({
+            visible: true,
+            suggestions,
+            position: { 
+              x: left,
+              y: top + 20
+            },
+            prefix: currentWord,
+            startPos,
+            selectedIndex: 0
+          });
+        } else {
+          hideAutoComplete();
+        }
+      } catch (error) {
+        console.error('Error getting completions:', error);
         hideAutoComplete();
       }
     } else {

@@ -21,17 +21,14 @@ class IndexService {
    * @param {Array} pages - Массив страниц из состояния приложения
    */
   async indexAllPages(pages) {
-    // Очищаем существующий индекс
-    await invoke("clear_index");
-
-    // Индексируем каждую страницу
-    for (const page of pages) {
-      if (page.content) {
+    try {
+      await invoke('clear_index');
+      for (const page of pages) {
         await this.indexContent(page.content);
       }
+    } catch (error) {
+      console.error('Error indexing pages:', error);
     }
-
-    this.initialized = true;
   }
 
   /**
@@ -39,7 +36,11 @@ class IndexService {
    * @param {string} content - Текстовое содержимое страницы
    */
   async indexContent(content) {
-    await invoke("index_content", { content });
+    try {
+      await invoke('index_content', { content });
+    } catch (error) {
+      console.error('Error indexing content:', error);
+    }
   }
 
   /**
@@ -48,20 +49,16 @@ class IndexService {
    * @param {number} limit - Максимальное количество результатов
    * @returns {Array} - Массив подходящих вариантов
    */
-  async findCompletions(prefix, limit = 5) {
-    if (!this.initialized || !prefix || prefix.length < 2) {
-      return [];
-    }
-
+  async findCompletions(prefix, limit = 10) {
     try {
-      const results = await invoke("find_completions", { prefix, limit });
-      return results.map(item => ({
-        text: item.text,
-        type: item.type_,
-        count: item.count
+      const results = await invoke('find_completions', { prefix, limit });
+      return results.map(([text, type, count]) => ({
+        text,
+        type,
+        count
       }));
     } catch (error) {
-      console.error("Ошибка при поиске автодополнений:", error);
+      console.error('Error finding completions:', error);
       return [];
     }
   }

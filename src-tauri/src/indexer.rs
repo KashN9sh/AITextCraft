@@ -12,11 +12,76 @@ pub struct Indexer {
     word_index: HashMap<String, u32>,
     tag_index: HashMap<String, u32>,
     phrase_index: HashMap<String, u32>,
+    templates: HashMap<String, Vec<String>>,
 }
 
 impl Indexer {
     pub fn new() -> Self {
-        Self::default()
+        let mut indexer = Self::default();
+        indexer.init_templates();
+        indexer
+    }
+
+    fn init_templates(&mut self) {
+        // Шаблоны для списков
+        self.templates.insert("список".to_string(), vec![
+            "- [ ] ".to_string(),
+            "- [ ] - ".to_string(),
+            "1. ".to_string(),
+        ]);
+
+        // Шаблоны для заголовков
+        self.templates.insert("заголовок".to_string(), vec![
+            "# ".to_string(),
+            "## ".to_string(),
+            "### ".to_string(),
+        ]);
+
+        // Шаблоны для форматирования
+        self.templates.insert("жирный".to_string(), vec![
+            "**".to_string(),
+        ]);
+
+        self.templates.insert("курсив".to_string(), vec![
+            "*".to_string(),
+        ]);
+
+        self.templates.insert("код".to_string(), vec![
+            "`".to_string(),
+            "```".to_string(),
+        ]);
+
+        // Шаблоны для таблиц
+        self.templates.insert("таблица".to_string(), vec![
+            "| | |\n| --- | --- |\n| | |".to_string(),
+        ]);
+
+        // Шаблоны для цитат
+        self.templates.insert("цитата".to_string(), vec![
+            "> ".to_string(),
+        ]);
+
+        // Шаблоны для ссылок
+        self.templates.insert("ссылка".to_string(), vec![
+            "[текст](url)".to_string(),
+        ]);
+
+        // Шаблоны для изображений
+        self.templates.insert("изображение".to_string(), vec![
+            "![alt](url)".to_string(),
+        ]);
+
+        // Шаблоны для задач
+        self.templates.insert("задача".to_string(), vec![
+            "- [ ] ".to_string(),
+        ]);
+
+        // Шаблоны для заметок
+        self.templates.insert("заметка".to_string(), vec![
+            "> 💡 ".to_string(),
+            "> 📝 ".to_string(),
+            "> ⚠️ ".to_string(),
+        ]);
     }
 
     pub fn index_content(&mut self, content: &str) {
@@ -68,6 +133,15 @@ impl Indexer {
 
         let prefix = prefix.to_lowercase();
         let mut results = Vec::new();
+
+        // Проверяем шаблоны
+        for (template_name, templates) in &self.templates {
+            if template_name.contains(&prefix) {
+                for template in templates {
+                    results.push((template.clone(), "template".to_string(), 100));
+                }
+            }
+        }
 
         // Если префикс начинается с @ или #, ищем по тегам
         if prefix.starts_with('@') || prefix.starts_with('#') {
