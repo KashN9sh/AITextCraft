@@ -34,6 +34,7 @@ import AutoComplete from "./components/AutoComplete";
 import indexService from "./services/indexService";
 import TableEditor from "./components/TableEditor";
 import InlineTableEditor from './components/InlineTableEditor';
+import Editor from "./components/Editor/Editor";
 
 // Настраиваем marked для использования highlight.js и поддержки чекбоксов
 marked.setOptions({
@@ -87,27 +88,27 @@ function debounce(func, wait) {
 }
 
 function App() {
+  const [documents, setDocuments] = useState({}); // Хранит все документы: { filePath: { pages: [], currentPageId: number } }
+  const [currentDocument, setCurrentDocument] = useState(null); // Текущий открытый документ
   const [content, setContent] = useState("");
   const [fileName, setFileName] = useState("untitled.md");
   const [isPreview, setIsPreview] = useState(false);
   const [isExplorerOpen, setIsExplorerOpen] = useState(true);
   const [currentDirectory, setCurrentDirectory] = useState(null);
   const [showWelcome, setShowWelcome] = useState(true);
-  const [pages, setPages] = useState([{ id: 1, title: "Страница 1", content: "" }]);
-  const [currentPageId, setCurrentPageId] = useState(1);
-  const textareaRef = useRef(null);
-  const [clipboard, setClipboard] = useState("");
+  const [showAICoach, setShowAICoach] = useState(false);
+  const [isTableEditorOpen, setIsTableEditorOpen] = useState(false);
+  const [tableEditorPosition, setTableEditorPosition] = useState(null);
   const [contextMenu, setContextMenu] = useState({ show: false, x: 0, y: 0, pageId: null });
   const [renamingPageId, setRenamingPageId] = useState(null);
   const [renameValue, setRenameValue] = useState("");
   const [renameMenu, setRenameMenu] = useState({ show: false, x: 0, y: 0, pageId: null });
+  const textareaRef = useRef(null);
+  const [clipboard, setClipboard] = useState("");
   const [editingBlockIdx, setEditingBlockIdx] = useState(null);
   const [editingContent, setEditingContent] = useState("");
   const editingRef = useRef(null);
   const [newBlockContent, setNewBlockContent] = useState("");
-  const [showAICoach, setShowAICoach] = useState(false);
-  const [isTableEditorOpen, setIsTableEditorOpen] = useState(false);
-  const [tableEditorPosition, setTableEditorPosition] = useState(null);
   
   // Состояние для автодополнения
   const [autoComplete, setAutoComplete] = useState({
@@ -126,6 +127,10 @@ function App() {
     visible: false,
     position: { x: 0, y: 0 }
   });
+
+  // Получаем текущие страницы и ID текущей страницы
+  const currentPages = currentDocument ? documents[currentDocument]?.pages || [] : [];
+  const currentPageId = currentDocument ? documents[currentDocument]?.currentPageId || 1 : 1;
 
   // Эффект для автоматического изменения высоты текстового поля
   useEffect(() => {
@@ -149,100 +154,83 @@ function App() {
     }
   }, [editingBlockIdx, editingContent, content]);
 
-  const handleSave = useCallback(async (customPages) => {
-    try {
-      const updatedPages = (customPages ?? pages).map(page =>
-        page.id === currentPageId
-          ? { ...page, content }
-          : page
-      );
-      setPages(updatedPages);
+  const handleSave = useCallback(async () => {
+    if (!currentDocument) return;
 
+    try {
       const documentData = {
-        pages: updatedPages
+        pages: currentPages
       };
 
       await invoke("save_file", {
         content: JSON.stringify(documentData, null, 2),
-        fileName
+        fileName: currentDocument
       });
       alert("Файл успешно сохранен!");
     } catch (error) {
       alert("Ошибка при сохранении файла: " + error);
     }
-  }, [content, fileName, pages, currentPageId]);
-
-  // Создаем дебаунсированную версию handleSave
-  const debouncedSave = useCallback(
-    debounce((customPages) => {
-      handleSave(customPages);
-    }, 1000),
-    [handleSave]
-  );
-
-  // Эффект для автосохранения при изменении контента
-  useEffect(() => {
-    if (content && !showWelcome) {
-      debouncedSave();
-    }
-  }, [content, debouncedSave, showWelcome]);
-
-  // Добавляем обработчики событий меню
-  useEffect(() => {
-    // Обработчик события сохранения из меню
-    const unlistenSave = listen('menu-save', () => {
-      handleSave();
-    });
-
-    // Обработчик события загрузки из меню
-    const unlistenLoad = listen('menu-load', () => {
-      handleLoad();
-    });
-
-    // Обработчик события предпросмотра из меню
-    const unlistenPreview = listen('menu-preview', () => {
-      setIsPreview(!isPreview);
-    });
-
-    // Очистка обработчиков при размонтировании компонента
-    return () => {
-      unlistenSave.then(unlisten => unlisten());
-      unlistenLoad.then(unlisten => unlisten());
-      unlistenPreview.then(unlisten => unlisten());
-    };
-  }, [handleSave, isPreview]); // Добавляем handleSave и isPreview в зависимости
-
-  const handleLoad = async () => {
-    try {
-      const loadedContent = await invoke("load_file", { fileName });
-      setContent(loadedContent);
-    } catch (error) {
-      alert("Ошибка при загрузке файла: " + error);
-    }
-  };
+  }, [currentDocument, currentPages]);
 
   const handleFileSelect = async (fileItem) => {
+    // Если есть текущий документ, сохраняем его перед переключением
+    if (currentDocument) {
+      try {
+        const currentDocData = {
+          pages: currentPages
+        };
+        await invoke("save_file", {
+          content: JSON.stringify(currentDocData, null, 2),
+          fileName: currentDocument
+        });
+      } catch (error) {
+        console.error("Ошибка при сохранении текущего документа:", error);
+      }
+    }
+
     setFileName(fileItem.path);
     
     try {
       const loadedContent = await invoke("load_file", { fileName: fileItem.path });
+      
       // Парсим JSON из содержимого файла
       try {
         const documentData = JSON.parse(loadedContent);
         if (documentData.pages && Array.isArray(documentData.pages)) {
-          setPages(documentData.pages);
-          setCurrentPageId(documentData.pages[0]?.id || 1);
+          // Обновляем документы
+          setDocuments(prev => ({
+            ...prev,
+            [fileItem.path]: {
+              pages: documentData.pages,
+              currentPageId: documentData.pages[0]?.id || 1
+            }
+          }));
+          setCurrentDocument(fileItem.path);
           setContent(documentData.pages[0]?.content || "");
         } else {
           // Если это старый формат (просто markdown), конвертируем в новый
-          setPages([{ id: 1, title: "Страница 1", content: loadedContent }]);
-          setCurrentPageId(1);
+          const newPages = [{ id: 1, title: "Страница 1", content: loadedContent }];
+          setDocuments(prev => ({
+            ...prev,
+            [fileItem.path]: {
+              pages: newPages,
+              currentPageId: 1
+            }
+          }));
+          setCurrentDocument(fileItem.path);
           setContent(loadedContent);
         }
       } catch (e) {
         // Если не удалось распарсить JSON, считаем что это старый формат
-        setPages([{ id: 1, title: "Страница 1", content: loadedContent }]);
-        setCurrentPageId(1);
+        const newPages = [{ id: 1, title: "Страница 1", content: loadedContent }];
+        setDocuments(prev => ({
+          ...prev,
+          [fileItem.path]: {
+            pages: newPages,
+            currentPageId: 1
+          }
+        }));
+        setCurrentDocument(fileItem.path);
         setContent(loadedContent);
       }
     } catch (error) {
@@ -730,47 +718,85 @@ function App() {
   });
 
   const handleAddPage = () => {
-    const newPageId = Math.max(...pages.map(p => p.id), 0) + 1;
+    if (!currentDocument) return;
+
+    const newPageId = Math.max(...currentPages.map(p => p.id), 0) + 1;
     const newPage = {
       id: newPageId,
       title: `Страница ${newPageId}`,
       content: ""
     };
-    setPages([...pages, newPage]);
-    setCurrentPageId(newPageId);
+
+    setDocuments(prev => ({
+      ...prev,
+      [currentDocument]: {
+        ...prev[currentDocument],
+        pages: [...prev[currentDocument].pages, newPage],
+        currentPageId: newPageId
+      }
+    }));
     setContent("");
   };
 
   const handleRemovePage = (pageId) => {
-    if (pages.length <= 1) {
+    if (!currentDocument || currentPages.length <= 1) {
       alert("Нельзя удалить последнюю страницу!");
       return;
     }
     
-    const newPages = pages.filter(p => p.id !== pageId);
-    setPages(newPages);
+    const newPages = currentPages.filter(p => p.id !== pageId);
+    
+    setDocuments(prev => ({
+      ...prev,
+      [currentDocument]: {
+        ...prev[currentDocument],
+        pages: newPages,
+        currentPageId: pageId === currentPageId ? newPages[0].id : currentPageId
+      }
+    }));
     
     // Если удаляем текущую страницу, переключаемся на предыдущую
     if (pageId === currentPageId) {
-      const currentIndex = pages.findIndex(p => p.id === pageId);
+      const currentIndex = currentPages.findIndex(p => p.id === pageId);
       const newCurrentPage = newPages[Math.max(0, currentIndex - 1)];
-      setCurrentPageId(newCurrentPage.id);
       setContent(newCurrentPage.content);
     }
+
+    // Сохраняем изменения в файл
+    const updatedDocument = {
+      pages: newPages
+    };
+
+    invoke("save_file", {
+      content: JSON.stringify(updatedDocument, null, 2),
+      fileName: currentDocument
+    }).catch(error => {
+      console.error("Ошибка при сохранении файла после удаления страницы:", error);
+      alert("Ошибка при сохранении изменений: " + error);
+    });
   };
 
   const handlePageChange = (pageId) => {
+    if (!currentDocument) return;
+
     // Сохраняем содержимое текущей страницы
-    const updatedPages = pages.map(page => 
+    const updatedPages = currentPages.map(page => 
       page.id === currentPageId 
         ? { ...page, content } 
         : page
     );
-    setPages(updatedPages);
+
+    setDocuments(prev => ({
+      ...prev,
+      [currentDocument]: {
+        ...prev[currentDocument],
+        pages: updatedPages,
+        currentPageId: pageId
+      }
+    }));
 
     // Переключаемся на новую страницу
     const newPage = updatedPages.find(p => p.id === pageId);
-    setCurrentPageId(pageId);
     setContent(newPage.content);
   };
 
@@ -799,6 +825,8 @@ function App() {
   };
 
   const handleRenamePage = (pageId, title, event) => {
+    if (!currentDocument) return;
+
     let x = event?.clientX || 100;
     let y = event?.clientY || 100;
     const menuWidth = 200;
@@ -814,15 +842,23 @@ function App() {
   const handleRenameInputChange = (e) => setRenameValue(e.target.value);
 
   const handleRenameInputBlur = () => {
-    if (renamingPageId !== null) {
-      const updatedPages = pages.map(page =>
-        page.id === renamingPageId ? { ...page, title: renameValue.trim() || page.title } : page
-      );
-      setPages(updatedPages);
-      setRenamingPageId(null);
-      setRenameMenu({ show: false, x: 0, y: 0, pageId: null });
-      handleSave(updatedPages); // Сохраняем с актуальными страницами
-    }
+    if (!currentDocument || renamingPageId === null) return;
+
+    const updatedPages = currentPages.map(page =>
+      page.id === renamingPageId ? { ...page, title: renameValue.trim() || page.title } : page
+    );
+
+    setDocuments(prev => ({
+      ...prev,
+      [currentDocument]: {
+        ...prev[currentDocument],
+        pages: updatedPages
+      }
+    }));
+
+    setRenamingPageId(null);
+    setRenameMenu({ show: false, x: 0, y: 0, pageId: null });
+    handleSave();
   };
 
   const handleRenameInputKeyDown = (e) => {
@@ -955,6 +991,7 @@ function App() {
   };
 
   const handleNewBlockKeyDown = (e) => {
+    console.log('handleNewBlockKeyDown:', { value: newBlockContent, key: e.key });
     // Обработка Enter для автодополнения
     if (e.key === 'Enter' && !e.shiftKey && autoComplete.visible) {
       e.preventDefault();
@@ -964,21 +1001,25 @@ function App() {
       return;
     }
 
-    // Обработка Enter (обычный и Shift + Enter)
     if (e.key === 'Enter') {
       e.preventDefault();
-      if (newBlockContent.trim() !== "") {
-        const blocks = splitMarkdownBlocks(content);
-        blocks.push(newBlockContent);
-        const newContent = blocks.join('\n\n');
-        setContent(newContent);
-        setNewBlockContent("");
-        
-        // Сразу переключаемся на новый блок для редактирования
-        const newBlockIndex = blocks.length - 1;
-        setEditingBlockIdx(newBlockIndex);
-        setEditingContent(newBlockContent);
+      const value = newBlockContent.trim();
+      if (!value) return;
+      let blockToInsert = value;
+      if (value === '/таблица' || value === '/table') {
+        blockToInsert =
+          '| Заголовок 1 | Заголовок 2 |\n' +
+          '| --- | --- |\n' +
+          '|  |  |\n' +
+          '|  |  |';
       }
+      const blocks = splitMarkdownBlocks(content);
+      blocks.push(blockToInsert);
+      const newContent = blocks.join('\n\n');
+      setContent(newContent);
+      setNewBlockContent("");
+      // Не переводим в режим редактирования — просто оставляем поле для нового блока
+      console.log('Блок добавлен:', blockToInsert);
       return;
     }
   };
@@ -1047,12 +1088,12 @@ function App() {
 
   // Эффект для индексации содержимого при загрузке страниц
   useEffect(() => {
-    if (pages.length > 0) {
-      indexService.indexAllPages(pages).catch(error => {
+    if (currentPages.length > 0) {
+      indexService.indexAllPages(currentPages).catch(error => {
         console.error("Ошибка при индексации страниц:", error);
       });
     }
-  }, [pages]);
+  }, [currentPages]);
 
   // Функция для парсинга Markdown таблицы в массив данных
   const parseMarkdownTable = (markdownTable) => {
@@ -1301,11 +1342,11 @@ function App() {
       <animated.div className="main-content" style={editorAnimation}>
         {/* Файловый проводник */}
         <animated.div className="file-explorer-container" style={explorerAnimation}>
-            <FileExplorer 
-              onFileSelect={handleFileSelect} 
-              directoryPath={currentDirectory?.path}
-              currentFile={{ path: fileName }}
-            />
+          <FileExplorer 
+            onFileSelect={handleFileSelect} 
+            directoryPath={currentDirectory?.path}
+            currentFile={{ path: fileName }}
+          />
         </animated.div>
         
         {/* Контейнер редактора и вкладок */}
@@ -1356,7 +1397,7 @@ function App() {
           {/* Вкладки страниц справа, под редактором */}
           <div className="page-tabs-under-editor">
             <div className="page-tabs">
-              {pages.map(page => (
+              {currentPages.map(page => (
                 <div 
                   key={page.id}
                   className={`page-tab ${page.id === currentPageId ? 'active' : ''}`}
@@ -1394,7 +1435,7 @@ function App() {
           <div
             className="context-menu-item"
             onClick={(e) => {
-              handleRenamePage(contextMenu.pageId, pages.find(p => p.id === contextMenu.pageId)?.title || "", e);
+              handleRenamePage(contextMenu.pageId, currentPages.find(p => p.id === contextMenu.pageId)?.title || "", e);
             }}
           >
             Переименовать
