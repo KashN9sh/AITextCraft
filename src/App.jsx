@@ -32,6 +32,7 @@ import { useSpring, animated } from 'react-spring';
 import AICoach from "./components/AICoach";
 import AutoComplete from "./components/AutoComplete";
 import indexService from "./services/indexService";
+import TableEditor from "./components/TableEditor";
 
 // Настраиваем marked для использования highlight.js и поддержки чекбоксов
 marked.setOptions({
@@ -104,6 +105,8 @@ function App() {
   const editingRef = useRef(null);
   const [newBlockContent, setNewBlockContent] = useState("");
   const [showAICoach, setShowAICoach] = useState(false);
+  const [isTableEditorOpen, setIsTableEditorOpen] = useState(false);
+  const [tableEditorPosition, setTableEditorPosition] = useState(null);
   
   // Состояние для автодополнения
   const [autoComplete, setAutoComplete] = useState({
@@ -113,6 +116,9 @@ function App() {
     prefix: "",
     selectedIndex: null
   });
+
+  // Добавляем состояние для хранения данных текущей таблицы
+  const [currentTableData, setCurrentTableData] = useState(null);
 
   // Эффект для автоматического изменения высоты текстового поля
   useEffect(() => {
@@ -1016,7 +1022,95 @@ function App() {
     }
   }, [pages]);
 
-  // Рендерим каждый блок + пустой блок в конце
+  // Функция для парсинга Markdown таблицы в массив данных
+  const parseMarkdownTable = (markdownTable) => {
+    const lines = markdownTable.trim().split('\n');
+    if (lines.length < 3) return null; // Минимум 3 строки: заголовок, разделитель и данные
+
+    // Убираем разделитель (вторую строку)
+    const dataLines = lines.filter((_, i) => i !== 1);
+    
+    // Парсим каждую строку
+    return dataLines.map(line => {
+      // Убираем начальный и конечный | и разбиваем по |
+      return line
+        .replace(/^\||\|$/g, '')
+        .split('|')
+        .map(cell => cell.trim());
+    });
+  };
+
+  // Обработчик клика по таблице
+  const handleTableClick = (e) => {
+    const tableElement = e.target.closest('table');
+    if (!tableElement) return;
+
+    // Получаем Markdown представление таблицы
+    const rows = Array.from(tableElement.rows);
+    const markdownTable = rows.map(row => {
+      const cells = Array.from(row.cells);
+      return '| ' + cells.map(cell => cell.textContent.trim()).join(' | ') + ' |';
+    }).join('\n');
+
+    // Добавляем разделитель после заголовка
+    const headerSeparator = '| ' + Array(rows[0].cells.length).fill('---').join(' | ') + ' |';
+    const fullMarkdownTable = markdownTable.split('\n').slice(0, 1).join('\n') + '\n' + headerSeparator + '\n' + markdownTable.split('\n').slice(1).join('\n');
+
+    // Находим индекс блока с таблицей
+    const blocks = splitMarkdownBlocks(content);
+    const blockIndex = blocks.findIndex(block => block.includes(fullMarkdownTable));
+    
+    if (blockIndex !== -1) {
+      setEditingBlockIdx(blockIndex);
+      setEditingContent(fullMarkdownTable);
+      // Парсим таблицу и открываем редактор с данными
+      const tableData = parseMarkdownTable(fullMarkdownTable);
+      if (tableData) {
+        setIsTableEditorOpen(true);
+        setTableEditorPosition({
+          x: window.innerWidth / 2 - 400,
+          y: window.innerHeight / 2 - 300
+        });
+        // Сохраняем данные таблицы для передачи в редактор
+        setCurrentTableData(tableData);
+      }
+    }
+  };
+
+  // Добавляем функцию для открытия редактора таблиц
+  const handleTableButtonClick = () => {
+    setIsTableEditorOpen(true);
+    setTableEditorPosition({
+      x: window.innerWidth / 2 - 400,
+      y: window.innerHeight / 2 - 300
+    });
+    setCurrentTableData(null); // Сбрасываем данные таблицы для создания новой
+  };
+
+  // Добавляем функцию для сохранения таблицы
+  const handleTableSave = (markdownTable) => {
+    if (editingBlockIdx !== null) {
+      // Если редактируем существующий блок
+      const blocks = splitMarkdownBlocks(content);
+      blocks[editingBlockIdx] = markdownTable;
+      const newContent = blocks.join('\n\n');
+      setContent(newContent);
+      setEditingContent(markdownTable);
+    } else {
+      // Если создаем новый блок
+      const newContent = content + (content ? '\n\n' : '') + markdownTable;
+      setContent(newContent);
+      setNewBlockContent(''); // Сбрасываем содержимое нового блока
+    }
+    setIsTableEditorOpen(false);
+  };
+
+  // Добавляем функцию для отмены редактирования таблицы
+  const handleTableCancel = () => {
+    setIsTableEditorOpen(false);
+  };
+
+  // Модифицируем renderMarkdown для добавления обработчика клика по таблице
   const renderMarkdown = () => {
     const blocks = splitMarkdownBlocks(content);
     return [
@@ -1057,6 +1151,8 @@ function App() {
             onMouseDown={(e) => {
               if (e.target.type === 'checkbox') {
                 handleCheckboxClick(e, idx);
+              } else if (e.target.closest('table')) {
+                handleTableClick(e);
               }
             }}
           />
@@ -1087,6 +1183,19 @@ function App() {
       </div>
     ];
   };
+
+  // Модифицируем кнопку таблицы в quick-insert-bar
+  const quickInsertButtons = [
+    { onClick: () => insertAtCursor("**", "**"), title: "Жирный (Ctrl/Cmd + B)", content: <b>B</b> },
+    { onClick: () => insertAtCursor("*", "*"), title: "Курсив (Ctrl/Cmd + I)", content: <i>I</i> },
+    { onClick: () => insertAtCursor("# "), title: "Заголовок (Ctrl/Cmd + Shift + H)", content: "H1" },
+    { onClick: () => insertAtCursor("- "), title: "Список (Ctrl/Cmd + Shift + L)", content: "•" },
+    { onClick: () => insertAtCursor("[текст](url)"), title: "Ссылка (Ctrl/Cmd + K)", content: <FontAwesomeIcon icon={faLink} /> },
+    { onClick: () => insertAtCursor("`", "`"), title: "Код (Ctrl/Cmd + Shift + C)", content: <>&lt;/&gt;</> },
+    { onClick: () => insertAtCursor("> "), title: "Цитата (Ctrl/Cmd + Shift + Q)", content: "❝" },
+    { onClick: handleTableButtonClick, title: "Таблица (Ctrl/Cmd + Shift + T)", content: "⊞" },
+    { onClick: () => insertAtCursor("- [ ] "), title: "Чекбокс (Ctrl/Cmd + Shift + B)", content: "☐" }
+  ];
 
   // Если активен приветственный экран
   if (showWelcome) {
@@ -1141,17 +1250,7 @@ function App() {
                 </button>
               </div>
               <div className="quick-insert-center">
-                {[
-                  { onClick: () => insertAtCursor("**", "**"), title: "Жирный (Ctrl/Cmd + B)", content: <b>B</b> },
-                  { onClick: () => insertAtCursor("*", "*"), title: "Курсив (Ctrl/Cmd + I)", content: <i>I</i> },
-                  { onClick: () => insertAtCursor("# "), title: "Заголовок (Ctrl/Cmd + Shift + H)", content: "H1" },
-                  { onClick: () => insertAtCursor("- "), title: "Список (Ctrl/Cmd + Shift + L)", content: "•" },
-                  { onClick: () => insertAtCursor("[текст](url)"), title: "Ссылка (Ctrl/Cmd + K)", content: <FontAwesomeIcon icon={faLink} /> },
-                  { onClick: () => insertAtCursor("`", "`"), title: "Код (Ctrl/Cmd + Shift + C)", content: <>&lt;/&gt;</> },
-                  { onClick: () => insertAtCursor("> "), title: "Цитата (Ctrl/Cmd + Shift + Q)", content: "❝" },
-                  { onClick: () => insertAtCursor("| | |\n| --- | --- |\n| | |"), title: "Таблица (Ctrl/Cmd + Shift + T)", content: "⊞" },
-                  { onClick: () => insertAtCursor("- [ ] "), title: "Чекбокс (Ctrl/Cmd + Shift + B)", content: "☐" }
-                ].map((button, index) => (
+                {quickInsertButtons.map((button, index) => (
                   <button
                     key={index}
                     onClick={button.onClick}
@@ -1259,6 +1358,25 @@ function App() {
             }}
             placeholder="Новое имя страницы"
           />
+        </div>
+      )}
+
+      {isTableEditorOpen && (
+        <div className="modal-overlay">
+          <div 
+            className="modal-content"
+            style={{
+              position: 'absolute',
+              left: `${tableEditorPosition.x}px`,
+              top: `${tableEditorPosition.y}px`
+            }}
+          >
+            <TableEditor
+              initialData={currentTableData}
+              onSave={handleTableSave}
+              onCancel={handleTableCancel}
+            />
+          </div>
         </div>
       )}
     </main>
