@@ -29,7 +29,6 @@ import FileExplorer from "./components/FileExplorer";
 import WelcomeScreen from "./components/WelcomeScreen";
 import { listen } from '@tauri-apps/api/event';
 import { useSpring, animated } from 'react-spring';
-import AICoach from "./components/AICoach";
 import AutoComplete from "./components/AutoComplete";
 import indexService from "./services/indexService";
 import TableEditor from "./components/TableEditor";
@@ -96,7 +95,6 @@ function App() {
   const [isExplorerOpen, setIsExplorerOpen] = useState(true);
   const [currentDirectory, setCurrentDirectory] = useState(null);
   const [showWelcome, setShowWelcome] = useState(true);
-  const [showAICoach, setShowAICoach] = useState(false);
   const [isTableEditorOpen, setIsTableEditorOpen] = useState(false);
   const [tableEditorPosition, setTableEditorPosition] = useState(null);
   const [contextMenu, setContextMenu] = useState({ show: false, x: 0, y: 0, pageId: null });
@@ -1369,13 +1367,6 @@ function App() {
                 >
                   <FontAwesomeIcon icon={faFolderOpen} />
                 </button>
-                <button
-                  onClick={() => setShowAICoach(!showAICoach)}
-                  className={`toolbar-button${showAICoach ? ' active' : ''}`}
-                  title="AI-коуч"
-                >
-                  🤖 AI-коуч
-                </button>
               </div>
               <div className="quick-insert-center">
                 {quickInsertButtons.map((button, index) => (
@@ -1391,7 +1382,7 @@ function App() {
             </div>
             {/* Только интерактивные markdown-блоки или AI-коуч */}
             <div className="preview markdown-body">
-              {showAICoach ? <AICoach /> : renderMarkdown()}
+              {renderMarkdown()}
             </div>
           </div>
           {/* Вкладки страниц справа, под редактором */}
