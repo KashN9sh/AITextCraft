@@ -944,6 +944,8 @@ name = "fancytexty"
 version = "0.1.0"
 dependencies = [
  "dirs 5.0.1",
+ "lazy_static",
+ "regex",
  "rfd",
  "serde",
  "serde_json",

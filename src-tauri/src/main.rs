@@ -1,12 +1,19 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod indexer;
+
 use std::fs;
 use std::env;
 use std::path::PathBuf;
 use tauri::Manager;
 use tauri::menu::{MenuBuilder, MenuItemBuilder, SubmenuBuilder};
 use tauri::Emitter;
+use std::sync::Mutex;
+use indexer::Indexer;
+
+// Глобальный индексатор
+struct IndexerState(Mutex<Indexer>);
 
 #[derive(serde::Serialize)]
 struct FileItem {
@@ -19,6 +26,38 @@ struct FileItem {
 struct DirectoryHistory {
     path: String,
     name: String,
+}
+
+#[derive(serde::Serialize)]
+struct CompletionItem {
+    text: String,
+    type_: String,
+    count: u32,
+}
+
+#[tauri::command]
+async fn index_content(content: String, state: tauri::State<'_, IndexerState>) -> Result<(), String> {
+    let mut indexer = state.0.lock().map_err(|_| "Failed to lock indexer".to_string())?;
+    indexer.index_content(&content);
+    Ok(())
+}
+
+#[tauri::command]
+async fn find_completions(prefix: String, limit: usize, state: tauri::State<'_, IndexerState>) -> Result<Vec<CompletionItem>, String> {
+    let indexer = state.0.lock().map_err(|_| "Failed to lock indexer".to_string())?;
+    let results = indexer.find_completions(&prefix, limit);
+    Ok(results.into_iter().map(|(text, type_, count)| CompletionItem {
+        text,
+        type_,
+        count,
+    }).collect())
+}
+
+#[tauri::command]
+async fn clear_index(state: tauri::State<'_, IndexerState>) -> Result<(), String> {
+    let mut indexer = state.0.lock().map_err(|_| "Failed to lock indexer".to_string())?;
+    indexer.clear();
+    Ok(())
 }
 
 #[tauri::command]
@@ -253,6 +292,7 @@ fn copy_dir_all(src: &std::path::Path, dst: &std::path::Path) -> std::io::Result
 
 fn main() {
     tauri::Builder::default()
+        .manage(IndexerState(Mutex::new(Indexer::new())))
         .setup(|app| {
             // Создаем меню приложения
             let file_menu = SubmenuBuilder::new(app, "Файл")
@@ -322,7 +362,10 @@ fn main() {
             create_file,
             rename_file,
             delete_file,
-            copy_file
+            copy_file,
+            index_content,
+            find_completions,
+            clear_index
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

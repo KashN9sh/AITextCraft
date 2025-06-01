@@ -295,7 +295,7 @@ function App() {
   };
 
   // Модифицированный обработчик изменения текста блока
-  const handleBlockEdit = (e) => {
+  const handleBlockEdit = async (e) => {
     const textarea = e.target;
     setEditingContent(textarea.value);
     
@@ -304,7 +304,6 @@ function App() {
     textarea.style.height = 'auto';
     textarea.style.height = textarea.scrollHeight + 'px';
     
-    // Логика автодополнения
     const cursorPosition = textarea.selectionEnd;
     const textBeforeCursor = textarea.value.substring(0, cursorPosition);
     
@@ -329,7 +328,7 @@ function App() {
     if (currentWord && currentWord.length >= 2) {
       console.log('Поиск автодополнений для:', currentWord); // Отладочный вывод
       // Получаем подсказки для текущего слова
-      const suggestions = indexService.findCompletions(currentWord);
+      const suggestions = await indexService.findCompletions(currentWord);
       
       if (suggestions.length > 0) {
         // Расчитываем позицию для отображения автодополнения
@@ -903,7 +902,7 @@ function App() {
   }, []);
 
   // Добавление нового блока
-  const handleNewBlockChange = (e) => {
+  const handleNewBlockChange = async (e) => {
     setNewBlockContent(e.target.value);
     
     // Логика автодополнения - аналогично handleBlockEdit
@@ -931,7 +930,7 @@ function App() {
     
     if (currentWord && currentWord.length >= 2) {
       // Получаем подсказки для текущего слова
-      const suggestions = indexService.findCompletions(currentWord);
+      const suggestions = await indexService.findCompletions(currentWord);
       
       if (suggestions.length > 0) {
         // Расчитываем позицию для отображения автодополнения
@@ -1016,7 +1015,9 @@ function App() {
   // Эффект для индексации содержимого при загрузке страниц
   useEffect(() => {
     if (pages.length > 0) {
-      indexService.indexAllPages(pages);
+      indexService.indexAllPages(pages).catch(error => {
+        console.error("Ошибка при индексации страниц:", error);
+      });
     }
   }, [pages]);
 
