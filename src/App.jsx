@@ -33,6 +33,7 @@ import AICoach from "./components/AICoach";
 import AutoComplete from "./components/AutoComplete";
 import indexService from "./services/indexService";
 import TableEditor from "./components/TableEditor";
+import InlineTableEditor from './components/InlineTableEditor';
 
 // Настраиваем marked для использования highlight.js и поддержки чекбоксов
 marked.setOptions({
@@ -1097,12 +1098,6 @@ function App() {
       // Парсим таблицу и открываем редактор с данными
       const tableData = parseMarkdownTable(fullMarkdownTable);
       if (tableData) {
-        setIsTableEditorOpen(true);
-        setTableEditorPosition({
-          x: window.innerWidth / 2 - 400,
-          y: window.innerHeight / 2 - 300
-        });
-        // Сохраняем данные таблицы для передачи в редактор
         setCurrentTableData(tableData);
       }
     }
@@ -1198,79 +1193,54 @@ function App() {
   const renderMarkdown = () => {
     const blocks = splitMarkdownBlocks(content);
     return [
-      ...blocks.map((block, idx) =>
-        editingBlockIdx === idx ? (
-          <div key={idx} style={{ position: 'relative' }} className="editing-block-container">
-            <div className="block-type-indicator">
-              {block.startsWith('#') ? 'Заголовок' : 
-               block.startsWith('```') ? 'Блок кода' : 
-               block.startsWith('>') ? 'Цитата' : 
-               block.startsWith('- [ ]') || block.startsWith('- [x]') ? 'Список задач' : 
-               block.startsWith('-') || block.startsWith('*') ? 'Список' : 
-               block.startsWith('|') && block.includes('|') ? 'Таблица' : 'Текст'}
-            </div>
-            <textarea
-              ref={editingRef}
-              value={editingContent}
-              onChange={handleBlockEdit}
-              onBlur={handleBlockBlur}
-              onKeyDown={handleBlockKeyDown}
-              className="editing-block"
-              placeholder="Начните ввод или вставьте содержимое..."
-              onFocus={e => {
-                e.target.style.height = '';
-                e.target.style.height = 'auto';
-                e.target.style.height = e.target.scrollHeight + 'px';
+      ...blocks.map((block, idx) => {
+        // Проверяем, является ли блок таблицей markdown
+        const isTable = block.trim().startsWith('|') && block.includes('\n|') && block.includes('---');
+        if (isTable) {
+          return (
+            <InlineTableEditor
+              key={idx}
+              markdown={block}
+              onChange={newMarkdown => {
+                const updatedBlocks = [...blocks];
+                updatedBlocks[idx] = newMarkdown;
+                setContent(updatedBlocks.join('\n\n'));
               }}
             />
-            <div className="editing-controls">
-              <button 
-                className="done-button"
-                onClick={handleBlockBlur}
-                title="Готово (Shift + Enter)"
-              >
-                Готово
-              </button>
-              <span className="editing-hint">Shift + Enter для сохранения</span>
-            </div>
-            {textToolbar.visible && (
-              <div 
-                className="text-formatting-toolbar" 
-                style={{ 
-                  position: 'absolute', 
-                  top: textToolbar.position.y, 
-                  left: textToolbar.position.x 
+          );
+        }
+        // Обычный markdown-блок: если редактируется — textarea, иначе — div
+        if (editingBlockIdx === idx) {
+          return (
+            <div key={idx} style={{ position: 'relative' }} className="editing-block-container">
+              <textarea
+                ref={editingRef}
+                value={editingContent}
+                onChange={handleBlockEdit}
+                onBlur={handleBlockBlur}
+                onKeyDown={handleBlockKeyDown}
+                className="editing-block"
+                placeholder="Начните ввод или вставьте содержимое..."
+                onFocus={e => {
+                  e.target.style.height = '';
+                  e.target.style.height = 'auto';
+                  e.target.style.height = e.target.scrollHeight + 'px';
                 }}
-              >
-                <button onClick={() => formatSelectedText('bold')} title="Жирный текст">
-                  <b>B</b>
-                </button>
-                <button onClick={() => formatSelectedText('italic')} title="Курсив">
-                  <i>I</i>
-                </button>
-                <button onClick={() => formatSelectedText('code')} title="Код">
-                  <code>{`{}`}</code>
-                </button>
-                <button onClick={() => formatSelectedText('link')} title="Ссылка">
-                  <span>🔗</span>
-                </button>
-                <button onClick={() => formatSelectedText('heading')} title="Заголовок">
-                  <span>H</span>
-                </button>
-              </div>
-            )}
-            {autoComplete.visible && editingBlockIdx === idx && (
-              <AutoComplete
-                suggestions={autoComplete.suggestions}
-                position={autoComplete.position}
-                visible={autoComplete.visible}
-                onSelect={handleAutoCompleteSelect}
-                onDismiss={hideAutoComplete}
-                selectedIndex={autoComplete.selectedIndex || 0}
               />
-            )}
-          </div>
-        ) : (
+              <div className="editing-controls">
+                <button 
+                  className="done-button"
+                  onClick={handleBlockBlur}
+                  title="Готово (Shift + Enter)"
+                >
+                  Готово
+                </button>
+                <span className="editing-hint">Shift + Enter для сохранения</span>
+              </div>
+            </div>
+          );
+        }
+        return (
           <div
             key={idx}
             className="markdown-block"
@@ -1281,13 +1251,11 @@ function App() {
             onMouseDown={(e) => {
               if (e.target.type === 'checkbox') {
                 handleCheckboxClick(e, idx);
-              } else if (e.target.closest('table')) {
-                handleTableClick(e);
               }
             }}
           />
-        )
-      ),
+        );
+      }),
       // Пустой блок для создания нового
       <div key="new-block" className="new-block-container">
         <input
@@ -1480,23 +1448,17 @@ function App() {
         </div>
       )}
 
-      {isTableEditorOpen && (
-        <div className="modal-overlay">
-          <div 
-            className="modal-content"
-            style={{
-              position: 'absolute',
-              left: `${tableEditorPosition.x}px`,
-              top: `${tableEditorPosition.y}px`
-            }}
-          >
-            <TableEditor
-              initialData={currentTableData}
-              onSave={handleTableSave}
-              onCancel={handleTableCancel}
-            />
-          </div>
-        </div>
+      {editingBlockIdx !== null && currentTableData && (
+        <TableEditor
+          initialData={currentTableData}
+          onSave={(markdown) => {
+            setEditingContent(markdown);
+            setCurrentTableData(null);
+          }}
+          onCancel={() => {
+            setCurrentTableData(null);
+          }}
+        />
       )}
     </main>
   );

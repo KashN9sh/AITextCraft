@@ -1737,16 +1737,18 @@ button:focus {
 .table-editor {
   background-color: var(--editor-bg);
   border-radius: 12px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-  width: 800px;
-  padding: 20px;
-  z-index: 1000;
+  box-shadow: 0 2px 8px var(--shadow-color);
+  border: 1px solid var(--border-color);
+  margin: 1rem 0;
+  overflow: hidden;
 }
 
 .table-editor-toolbar {
   display: flex;
   gap: 10px;
-  margin-bottom: 15px;
+  padding: 0.8rem;
+  background-color: var(--primary-light);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .table-editor-toolbar button {
@@ -1754,145 +1756,69 @@ button:focus {
   border-radius: 8px;
   border: none;
   background-color: var(--primary-color);
-  color: var(--text-color);
+  color: white;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .table-editor-toolbar button:hover {
   background-color: var(--primary-dark);
-  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px var(--shadow-color);
 }
 
-.table-actions {
+.table-editor-toolbar button:active {
+  transform: translateY(1px);
+}
+
+.markdown-button {
+  background-color: var(--primary-light) !important;
+  color: var(--text-color) !important;
+}
+
+.markdown-button.active {
+  background-color: var(--primary-color) !important;
+  color: white !important;
+}
+
+.markdown-editor {
+  padding: 1rem;
+}
+
+.markdown-textarea {
+  width: 100%;
+  min-height: 200px;
+  padding: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 0.95em;
+  line-height: 1.5;
+  resize: vertical;
+  background-color: var(--editor-bg);
+  color: var(--text-color);
+  margin-bottom: 1rem;
+}
+
+.markdown-textarea:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px var(--primary-light);
+}
+
+.markdown-actions {
   display: flex;
   gap: 10px;
-  margin-bottom: 15px;
-}
-
-.table-actions button {
-  padding: 6px 12px;
-  border-radius: 6px;
-  border: 1px solid var(--border-color);
-  background-color: var(--glass-bg);
-  color: var(--text-color);
-  font-size: 0.9em;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.table-actions button:hover {
-  background-color: var(--primary-light);
+  justify-content: flex-end;
 }
 
 .table-container {
   overflow-x: auto;
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
-}
-
-.table-editor table {
-  width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
-}
-
-.table-editor td, .table-editor th {
-  padding: 0;
-  position: relative;
-  border: 1px solid var(--border-color);
-}
-
-.cell-container {
-  position: relative;
-  min-width: 120px;
-}
-
-.cell-container input {
-  width: 100%;
-  padding: 8px 10px;
-  border: none;
-  font-size: 0.95em;
-  background-color: transparent;
-  color: var(--text-color);
-  transition: all 0.2s ease;
-}
-
-.cell-container input:focus {
-  outline: none;
-  background-color: var(--primary-light);
-}
-
-.cell-container input::placeholder {
-  color: #bbb;
-  opacity: 0.7;
-}
-
-.cell-controls {
-  position: absolute;
-  display: flex;
-  gap: 4px;
-  right: -2px;
-  top: -24px;
-  background-color: var(--glass-bg);
-  border-radius: 4px;
-  padding: 2px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  z-index: 2;
-}
-
-.cell-controls button {
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  background-color: transparent;
-  color: var(--text-color);
-  font-size: 0.8em;
-  cursor: pointer;
-  border-radius: 4px;
-  transition: all 0.2s ease;
-}
-
-.cell-controls button:hover {
-  background-color: var(--primary-color);
-  color: white;
-}
-
-.active-cell {
-  background-color: var(--primary-light);
-  position: relative;
-  z-index: 1;
-}
-
-.row-actions, .col-actions {
-  padding: 0;
-  width: 30px;
-  text-align: center;
-  vertical-align: middle;
-}
-
-.row-action-button, .col-action-button {
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  background-color: transparent;
-  color: #999;
-  font-size: 0.8em;
-  cursor: pointer;
-  border-radius: 4px;
-  transition: all 0.2s ease;
-}
-
-.row-action-button:hover, .col-action-button:hover {
-  background-color: #ffcfcf;
-  color: #ff5555;
+  padding: 1rem;
 }
 
 .modal-overlay {
@@ -1906,6 +1832,13 @@ button:focus {
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  opacity: 0;
+  animation: fadeIn 0.2s ease forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .modal-content {
@@ -1913,4 +1846,51 @@ button:focus {
   border-radius: 12px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
   overflow: hidden;
+  width: 90%;
+  max-width: 800px;
+  max-height: 90vh;
+  position: relative;
+  transform: translateY(20px);
+  animation: slideIn 0.3s ease forwards;
+}
+
+@keyframes slideIn {
+  from { transform: translateY(20px); }
+  to { transform: translateY(0); }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  background-color: var(--primary-light);
+}
+
+.modal-title {
+  font-size: 1.2em;
+  font-weight: 500;
+  color: var(--text-color);
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--text-color);
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.modal-close:hover {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.modal-body {
+  padding: 1rem;
+  overflow-y: auto;
+  max-height: calc(90vh - 120px);
 }
