@@ -308,14 +308,14 @@ function App() {
 
   // Модифицированный обработчик изменения текста блока
   const handleBlockEdit = async (e) => {
+    const newContent = e.target.value;
+    setEditingContent(newContent);
+    
+    // Индексируем контент для автодополнения
+    await indexService.indexContent(newContent);
+    
+    // Логика автодополнения
     const textarea = e.target;
-    setEditingContent(textarea.value);
-    
-    // Автоматическое изменение высоты
-    textarea.style.height = '';
-    textarea.style.height = 'auto';
-    textarea.style.height = textarea.scrollHeight + 'px';
-    
     const cursorPosition = textarea.selectionEnd;
     const textBeforeCursor = textarea.value.substring(0, cursorPosition);
     
@@ -337,24 +337,31 @@ function App() {
       }
     }
     
-    // Проверяем, есть ли выделенный текст для показа панели форматирования
-    const selectedText = textarea.value.substring(textarea.selectionStart, textarea.selectionEnd);
-    if (selectedText && selectedText.length > 0) {
-      // Получаем координаты выделения для отображения панели инструментов
-      const selection = window.getSelection();
-      if (selection && selection.rangeCount > 0) {
-        const range = selection.getRangeAt(0);
-        const rect = range.getBoundingClientRect();
+    if (currentWord && currentWord.length >= 2) {
+      // Получаем подсказки для текущего слова
+      const suggestions = await indexService.findCompletions(currentWord);
+      
+      if (suggestions.length > 0) {
+        // Расчитываем позицию для отображения автодополнения
+        const textareaRect = textarea.getBoundingClientRect();
+        const { left, top } = getCaretCoordinates(textarea, cursorPosition);
         
-        // Показываем панель форматирования над выделенным текстом
-        setTextToolbar({
+        setAutoComplete({
           visible: true,
-          position: { x: rect.left, y: rect.top - 40 }
+          suggestions,
+          position: { 
+            x: left,
+            y: top + 20
+          },
+          prefix: currentWord,
+          startPos,
+          selectedIndex: 0
         });
+      } else {
+        hideAutoComplete();
       }
     } else {
-      // Скрываем панель форматирования, если нет выделенного текста
-      setTextToolbar({ visible: false, position: { x: 0, y: 0 } });
+      hideAutoComplete();
     }
   };
   
@@ -464,20 +471,29 @@ function App() {
       return;
     }
 
-    // Остальная логика автодополнения
+    // Обработка Enter для автодополнения
     if (e.key === 'Enter' && !e.shiftKey && autoComplete.visible) {
       e.preventDefault();
-      if (autoComplete.selectedIndex !== null) {
-        const selectedSuggestion = autoComplete.suggestions[autoComplete.selectedIndex];
-        const beforeCursor = editingContent.substring(0, autoComplete.position.x);
-        const afterCursor = editingContent.substring(autoComplete.position.x);
-        const lastWord = beforeCursor.split(/\s+/).pop();
-        const newContent = beforeCursor.substring(0, beforeCursor.length - lastWord.length) + 
-                          selectedSuggestion + afterCursor;
-        setEditingContent(newContent);
-        setEditingBlockIdx(null);
-        hideAutoComplete();
+      if (autoComplete.selectedIndex !== null && autoComplete.suggestions[autoComplete.selectedIndex]) {
+        handleAutoCompleteSelect(autoComplete.suggestions[autoComplete.selectedIndex].text);
       }
+      return;
+    }
+
+    // Обработка обычного Enter
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      const textarea = e.target;
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const value = textarea.value;
+      const newValue = value.substring(0, start) + '\n' + value.substring(end);
+      setEditingContent(newValue);
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + 1, start + 1);
+      }, 0);
+      return;
     }
 
     const textarea = e.target;
@@ -883,7 +899,10 @@ function App() {
   const handleNewBlockChange = async (e) => {
     setNewBlockContent(e.target.value);
     
-    // Логика автодополнения - аналогично handleBlockEdit
+    // Индексируем контент для автодополнения
+    await indexService.indexContent(e.target.value);
+    
+    // Логика автодополнения
     const textarea = e.target;
     const cursorPosition = textarea.selectionEnd;
     const textBeforeCursor = textarea.value.substring(0, cursorPosition);
@@ -934,6 +953,35 @@ function App() {
     }
   };
 
+  const handleNewBlockKeyDown = (e) => {
+    // Обработка Enter для автодополнения
+    if (e.key === 'Enter' && !e.shiftKey && autoComplete.visible) {
+      e.preventDefault();
+      if (autoComplete.selectedIndex !== null && autoComplete.suggestions[autoComplete.selectedIndex]) {
+        handleAutoCompleteSelect(autoComplete.suggestions[autoComplete.selectedIndex].text);
+      }
+      return;
+    }
+
+    // Обработка Enter (обычный и Shift + Enter)
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (newBlockContent.trim() !== "") {
+        const blocks = splitMarkdownBlocks(content);
+        blocks.push(newBlockContent);
+        const newContent = blocks.join('\n\n');
+        setContent(newContent);
+        setNewBlockContent("");
+        
+        // Сразу переключаемся на новый блок для редактирования
+        const newBlockIndex = blocks.length - 1;
+        setEditingBlockIdx(newBlockIndex);
+        setEditingContent(newBlockContent);
+      }
+      return;
+    }
+  };
+
   const handleNewBlockBlur = () => {
     // Скрываем автодополнение
     hideAutoComplete();
@@ -941,8 +989,14 @@ function App() {
     if (newBlockContent.trim() !== "") {
       const blocks = splitMarkdownBlocks(content);
       blocks.push(newBlockContent);
-      setContent(blocks.join('\n\n'));
+      const newContent = blocks.join('\n\n');
+      setContent(newContent);
       setNewBlockContent("");
+      
+      // Сразу переключаемся на новый блок для редактирования
+      const newBlockIndex = blocks.length - 1;
+      setEditingBlockIdx(newBlockIndex);
+      setEditingContent(newBlockContent);
     }
   };
 
@@ -1241,7 +1295,7 @@ function App() {
           placeholder="Введите '/' для команд или начните печатать..."
           value={newBlockContent}
           onChange={handleNewBlockChange}
-          onKeyDown={e => handleBlockKeyDown(e, null, true)}
+          onKeyDown={handleNewBlockKeyDown}
           onBlur={handleNewBlockBlur}
           className="new-block-input"
         />
